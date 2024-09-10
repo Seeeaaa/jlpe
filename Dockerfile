@@ -32,7 +32,6 @@ COPY pyproject.toml poetry.lock ./
 RUN poetry install
 #  && rm -rf $POETRY_CACHE_DIR
 
-
 EXPOSE 8888
 ENTRYPOINT ["bash"]
 # CMD ["poetry", "run", "jupyter", "lab", "--allow-root", "--no-browser", "--ip=0.0.0.0"]
