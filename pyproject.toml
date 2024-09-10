@@ -16,9 +16,9 @@ isort = "5.13.2"
 yapf = "0.40.2"
 jupyterlab-execute-time = "3.1.2"
 
-[tool.black]
-line-length = 79
-target-version = ["py311", "py312"]
+# [tool.black]
+# line-length = 79
+# target-version = ["py311", "py312"]
 
 [build-system]
 requires = ["poetry-core"]
