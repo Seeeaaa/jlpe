@@ -24,7 +24,7 @@ RUN ln -s $VENV_PATH/bin/poetry /usr/local/bin/poetry
 
 # RUN pip install poetry==$POETRY_VERSION
 
-WORKDIR /petproject
+WORKDIR /app
 
 COPY pyproject.toml poetry.lock ./
 
