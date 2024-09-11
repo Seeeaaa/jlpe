@@ -1,0 +1,32 @@
+{
+    "enableKernelInitNotification": false,
+    "codeCellConfig": {
+        "rulers": [
+            79
+        ]
+    },
+    "defaultCell": "code",
+    "autoStartDefaultKernel": false,
+    "inputHistoryScope": "global",
+    "kernelShutdown": false,
+    "markdownCellConfig": {},
+    "rawCellConfig": {},
+    "scrollPastEnd": true,
+    "recordTiming": true,
+    "overscanCount": 1,
+    "maxNumberOutputs": 50,
+    "scrollHeadingToTop": true,
+    "showEditorForReadOnlyMarkdown": true,
+    "kernelStatus": {
+        "showOnStatusBar": true,
+        "showProgress": true
+    },
+    "documentWideUndoRedo": false,
+    "showHiddenCellsButton": true,
+    "renderingLayout": "default",
+    "sideBySideLeftMarginOverride": "10px",
+    "sideBySideRightMarginOverride": "10px",
+    "sideBySideOutputRatio": 1,
+    "windowingMode": "full",
+    "accessKernelHistory": false
+}
