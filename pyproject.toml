@@ -5,7 +5,7 @@ description = "Portable JupyterLab environment that simplifies setup and ensures
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "3.12.6"
+python = "3.11.9"
 
 [tool.poetry.group.env.dependencies]
 jupyterlab = "4.2.5"
