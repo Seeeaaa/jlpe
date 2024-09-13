@@ -1069,13 +1069,13 @@ test = ["black (==22.1.0)", "blue (==0.9.1)", "coverage", "importlib-metadata", 
 
 [[package]]
 name = "jupyterlab-execute-time"
-version = "3.1.2"
+version = "3.2.0"
 description = "Display cell timings in Jupyter Lab"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "jupyterlab_execute_time-3.1.2-py3-none-any.whl", hash = "sha256:c185ccc97c8d1b1dbf369fd4ba3c01bbbe1f8d0f8762eeefdf3be32b6fb52dbe"},
-    {file = "jupyterlab_execute_time-3.1.2.tar.gz", hash = "sha256:0e2c86b283575e1fa278c7e94ab03a03fe5cd1fb4d57d620b3d4e5dbf54475b9"},
+    {file = "jupyterlab_execute_time-3.2.0-py3-none-any.whl", hash = "sha256:a0be3fe740fa59b59b16047793e5a0831cc497906863d26b83d3b92525dcb7ed"},
+    {file = "jupyterlab_execute_time-3.2.0.tar.gz", hash = "sha256:9b13b65c2c139bfabb3f6ff1706c4d33ed5a56203a89d0297608334e15bc9c0b"},
 ]
 
 [package.dependencies]
@@ -2273,4 +2273,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "3.11.9"
-content-hash = "8fea115d32be4f229a8fd431962cf7ff21e7c2d149d35124708b1e7e700c63d3"
+content-hash = "c24b3df56d96cc99ac165e24c3a94d4993c7749b9c205da19183cf50b2774e8b"
