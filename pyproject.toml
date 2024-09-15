@@ -21,13 +21,13 @@ plotly = "^5.24.1"
 colorcet = "^3.1.0"
 
 [tool.poetry.group.env.dependencies]
-jupyterlab = "4.2.5"
-jupyterlab-code-formatter = "3.0.2"
-autopep8 = "2.3.1"
-black = "24.8.0"
-isort = "5.13.2"
-yapf = "0.40.2"
-jupyterlab-execute-time = "3.2.0"
+jupyterlab = "^4.2.5"
+jupyterlab-code-formatter = "^3.0.2"
+autopep8 = "^2.3.1"
+black = "^24.8.0"
+isort = "^5.13.2"
+yapf = "^0.40.2"
+jupyterlab-execute-time = "^3.2.0"
 
 # [tool.black]
 # line-length = 79
