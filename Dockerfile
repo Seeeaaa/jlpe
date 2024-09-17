@@ -22,4 +22,6 @@ COPY pyproject.toml poetry.lock ./
 RUN poetry install
 
 EXPOSE 8888
-ENTRYPOINT ["bash"]
+
+ENTRYPOINT [bash]
+
