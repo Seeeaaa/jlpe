@@ -16,14 +16,11 @@ RUN ln -s $VENV_PATH/bin/poetry /usr/local/bin/poetry
 WORKDIR /root
 COPY .jupyter ./.jupyter
 
-WORKDIR /jlpe
+WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 
 RUN poetry install
 
-WORKDIR /app
-
 EXPOSE 8888
 
 ENTRYPOINT [bash]
-
