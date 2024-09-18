@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.11.9-slim-bookworm
+ARG PYTHON_VERSION=3.11.10-slim-bookworm
 
 FROM python:${PYTHON_VERSION} AS base
 
@@ -19,7 +19,7 @@ WORKDIR /root
 COPY .jupyter ./.jupyter
 
 WORKDIR /app
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
 
 RUN poetry install
 
