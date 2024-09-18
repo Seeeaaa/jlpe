@@ -6,6 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV VENV_PATH=/opt/poetry/venv
 
+ENV POETRY_REQUESTS_TIMEOUT=60
+
 ARG POETRY_VERSION=1.8.3
 
 RUN python3 -m venv $VENV_PATH
@@ -17,7 +19,7 @@ WORKDIR /root
 COPY .jupyter ./.jupyter
 
 WORKDIR /app
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
 
 RUN poetry install
 
