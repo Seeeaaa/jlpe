@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.11.9-slim-bookworm
+ARG PYTHON_VERSION=3.11.10-slim-bookworm
 
 FROM python:${PYTHON_VERSION} AS base
 
