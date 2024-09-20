@@ -6,7 +6,7 @@
         ]
     },
     "defaultCell": "code",
-    "autoStartDefaultKernel": false,
+    "autoStartDefaultKernel": true,
     "inputHistoryScope": "global",
     "kernelShutdown": false,
     "markdownCellConfig": {},
