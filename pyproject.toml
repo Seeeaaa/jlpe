@@ -17,10 +17,6 @@ yapf = "^0.40.2"
 jupyterlab-execute-time = "^3.2.0"
 nb-clean = "^3.3.0"
 
-# [tool.black]
-# line-length = 79
-# target-version = ["py311", "py312"]
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
