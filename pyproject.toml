@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "11.10.23.09"
+version = "11.10.24.09.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 package-mode = false
 
