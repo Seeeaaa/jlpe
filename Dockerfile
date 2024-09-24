@@ -13,11 +13,8 @@ RUN $VENV_PATH/bin/pip install -U pip setuptools
 RUN $VENV_PATH/bin/pip install poetry==$POETRY_VERSION
 RUN ln -s $VENV_PATH/bin/poetry /usr/local/bin/poetry
 
-WORKDIR /root
-COPY .jupyter ./.jupyter
-
 WORKDIR /app
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
 
 RUN poetry install
 
