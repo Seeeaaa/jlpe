@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "11.10.25.09.0"
+version = "11.10.26.09.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 package-mode = false
 
@@ -9,7 +9,7 @@ python = "3.11.10"
 
 [tool.poetry.group.scalable_data.dependencies]
 dask = {extras = ["complete"], version = "^2024.9.0"}
-tsfresh = "^0.20.3"
+tsfresh = {extras = ["dask"], version = "^0.20.3"}
 polars = "^1.8.1"
 
 [tool.poetry.group.data.dependencies]
