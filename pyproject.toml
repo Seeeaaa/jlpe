@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "11.10.24.09.0"
+version = "11.10.27.09.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 package-mode = false
 
@@ -16,6 +16,7 @@ isort = "^5.13.2"
 yapf = "^0.40.2"
 jupyterlab-execute-time = "^3.2.0"
 nb-clean = "^3.3.0"
+ruff = "^0.6.8"
 
 [build-system]
 requires = ["poetry-core"]
