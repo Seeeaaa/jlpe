@@ -21,4 +21,5 @@ RUN poetry install
 WORKDIR /app
 
 EXPOSE 8888
+
 ENTRYPOINT ["bash"]
