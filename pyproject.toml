@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "11.10.27.09.0"
+version = "11.10.15.10.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 package-mode = false
 
@@ -14,34 +14,34 @@ lightgbm = "^4.5.0"
 catboost = "^1.2.7"
 
 [tool.poetry.group.scalable_data.dependencies]
-dask = {extras = ["complete"], version = "^2024.9.0"}
+dask = {extras = ["complete"], version = "^2024.9.1"}
 tsfresh = {extras = ["dask"], version = "^0.20.3"}
-polars = "^1.8.1"
+polars = "^1.9.0"
 
 [tool.poetry.group.data.dependencies]
 numpy = "1.26.4"
-pandas = { extras = ["performance"], version = "^2.2.2" }
+pandas = { extras = ["performance"], version = "^2.2.3" }
 scikit-learn = "^1.5.2"
 scipy = "^1.14.1"
-statsmodels = "^0.14.2"
+statsmodels = "^0.14.4"
 
 [tool.poetry.group.visualization.dependencies]
 matplotlib = "^3.9.2"
 seaborn = "^0.13.2"
 plotly = "^5.24.1"
 colorcet = "^3.1.0"
-bokeh = "^3.5.2"
+bokeh = "^3.6.0"
 
 [tool.poetry.group.lab.dependencies]
 jupyterlab = "^4.2.5"
 jupyterlab-code-formatter = "^3.0.2"
 autopep8 = "^2.3.1"
-black = "^24.8.0"
+black = "^24.10.0"
 isort = "^5.13.2"
 yapf = "^0.40.2"
 jupyterlab-execute-time = "^3.2.0"
 nb-clean = "^3.3.0"
-ruff = "^0.6.8"
+ruff = "^0.6.9"
 
 [build-system]
 requires = ["poetry-core"]
