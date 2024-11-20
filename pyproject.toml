@@ -7,13 +7,19 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "3.12.7"
 
+[tool.poetry.group.ml.dependencies]
+prophet = "^1.1.6"
+xgboost = "^2.1.2"
+lightgbm = "^4.5.0"
+catboost = "^1.2.7"
+
 [tool.poetry.group.scalable_data.dependencies]
 dask = { extras = ["complete"], version = "^2024.11.2" }
 tsfresh = { extras = ["dask"], version = "^0.20.3" }
 polars = "^1.14.0"
 
 [tool.poetry.group.data.dependencies]
-numpy = "1.26.4"
+numpy = "^2.1.3"
 pandas = { extras = ["performance"], version = "^2.2.3" }
 scikit-learn = "^1.5.2"
 scipy = "^1.14.1"
