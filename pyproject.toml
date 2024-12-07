@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.12.7.3.12.0"
+version = "3.12.7.7.12.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 package-mode = false
 
@@ -14,7 +14,7 @@ lightgbm = "^4.5.0"
 catboost = "^1.2.7"
 
 [tool.poetry.group.scalable_data.dependencies]
-dask = { extras = ["complete"], version = "^2024.11.2" }
+dask = { extras = ["complete"], version = "^2024.12.0" }
 tsfresh = { extras = ["dask"], version = "^0.20.3" }
 polars = "^1.16.0"
 
@@ -41,7 +41,7 @@ isort = "^5.13.2"
 yapf = "^0.43.0"
 jupyterlab-execute-time = "^3.2.0"
 nb-clean = "^4.0.1"
-ruff = "^0.8.1"
+ruff = "^0.8.2"
 
 [build-system]
 requires = ["poetry-core"]
