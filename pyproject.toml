@@ -8,7 +8,7 @@ package-mode = false
 python = "3.12.7"
 
 [tool.poetry.group.lab.dependencies]
-jupyterlab = "^4.3.3"
+jupyterlab = "^4.3.4"
 jupyterlab-execute-time = "^3.2.0"
 jupyterlab-code-formatter = "^3.0.2"
 autopep8 = "^2.3.1"
