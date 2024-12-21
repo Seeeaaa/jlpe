@@ -16,7 +16,7 @@ black = "^24.10.0"
 isort = "^5.13.2"
 yapf = "^0.43.0"
 nb-clean = "^4.0.1"
-ruff = "^0.8.3"
+ruff = "^0.8.4"
 
 [build-system]
 requires = ["poetry-core"]
