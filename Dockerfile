@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.12.7-slim-bookworm
+ARG PYTHON_VERSION=3.12.8-slim-bookworm
 
 FROM python:${PYTHON_VERSION} AS base
 
@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV VENV_PATH=/opt/poetry/venv
 
-ARG POETRY_VERSION=1.8.4
+ARG POETRY_VERSION=1.8.5
 
 RUN python3 -m venv $VENV_PATH
 RUN $VENV_PATH/bin/pip install -U pip setuptools
