@@ -5,4 +5,4 @@
 *.py
 *.ipynb
 *.ipynb_checkpoints
-*.python_version
+*.python-version
