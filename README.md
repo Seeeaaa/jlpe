@@ -4,15 +4,15 @@ I created these Docker images because I use multiple PCs for my pet projects and
 
 ## Features
 
-- **Python version**: [3.12.x-slim-bookworm](https://hub.docker.com/_/python)
-- **Package Manager**: [Poetry](https://github.com/python-poetry/poetry) for dependency management
-- **Environment**: [JupyterLab](https://github.com/jupyterlab/jupyterlab)
-- **Additional Libraries**: Preconfigured with commonly used libraries
+- **Python version**: [3.12.x-slim-bookworm](https://hub.docker.com/_/python).
+- **Package Manager**: [Poetry](https://github.com/python-poetry/poetry) for dependency management.
+- **Environment**: [JupyterLab](https://github.com/jupyterlab/jupyterlab).
+- **Additional Libraries**: commonly used libraries.
 
 ### Versioning
 
-- **`Dockerfile`**: Lists base Python image and Poetry version.
-- **`pyproject.toml`**: Defines tag dependencies and their versions.
+- **`Dockerfile`**: lists base Python image and Poetry version.
+- **`pyproject.toml`**: defines tag dependencies and their versions.
 
 ## Tags
 
@@ -20,17 +20,18 @@ I created these Docker images because I use multiple PCs for my pet projects and
 
 |tag|Description|Included Libraries|
 |---|---|---|
-|`base`|JupyterLab core|JupyterLab extensions, linters, formatters|
-|`main`|Everything from `base` + data manipulation/visualization|NumPy, Pandas, Matplotlib, etc|
-|`ml`|Everything from `main` + gradient boosting/time-series forecasting|XGBoost, LightGBM, CatBoost, Prophet|
+|`base`|JupyterLab core|[JupyterLab extensions, linters, formatters](https://github.com/Seeeaaa/jlpe/blob/3.12.base/pyproject.toml)|
+|`main`|Everything from `base` + data manipulation/visualization|[NumPy, Pandas, Matplotlib, etc](https://github.com/Seeeaaa/jlpe/blob/3.12.main/pyproject.toml)|
+|`ml`|Everything from `main` + gradient boosting/time-series forecasting|[XGBoost, LightGBM, CatBoost, Prophet](https://github.com/Seeeaaa/jlpe/blob/3.12.ml/pyproject.toml)|
 
 ## Usage
 
-> **Note:** Currently, the container is configured to run as the root user.
+> **Note:** currently, containers are configured to run as the root user.
 
 ### Steps to get started:
 
-**Pull Docker Image with required tag (replace with `base`, `main` or `ml`)**:
+**Pull Docker Image**
+Replace <tag> with `base`, `main`, or `ml` to pull the corresponding image:
 ```bash
 docker pull vyxan/jlpe_image:<tag>
 ```
@@ -41,7 +42,7 @@ docker run -it -p 8888:8888 vyxan/jlpe_image:<tag>
 
 ### Mount directories and start JupyterLab
 
-If you want to mount project directory and JupyterLab settings ([by default located at `$HOME/.jupyter`](https://jupyterlab.readthedocs.io/en/stable/user/directories.html#jupyterlab-user-settings-directory)), and start JupyterLab, you can run the container with the following command:
+If you want to mount project directory and JupyterLab settings ([by default located](https://jupyterlab.readthedocs.io/en/stable/user/directories.html#jupyterlab-user-settings-directory) at `$HOME/.jupyter`), and start JupyterLab, you can run the container with the following command:
 
 #### Windows
 
