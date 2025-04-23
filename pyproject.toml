@@ -10,12 +10,12 @@ package-mode = false
 python = "3.12.8"
 
 [tool.poetry.group.scalable_data.dependencies]
-dask = { extras = ["complete"], version = "^2025.3.0" }
+dask = { extras = ["complete"], version = "^2025.4.0" }
 tsfresh = { extras = ["dask"], version = "^0.21.0" }
 polars = "^1.27.1"
 
 [tool.poetry.group.data.dependencies]
-numpy = "^2.2.4"
+numpy = "^2.2.5"
 pandas = { extras = ["performance"], version = "^2.2.3" }
 scikit-learn = "^1.6.1"
 scipy = "^1.15.2"
