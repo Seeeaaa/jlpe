@@ -8,6 +8,10 @@ ENV VENV_PATH=/opt/poetry/venv
 
 ARG POETRY_VERSION=1.8.5
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN python3 -m venv $VENV_PATH
 RUN $VENV_PATH/bin/pip install -U pip setuptools
 RUN $VENV_PATH/bin/pip install poetry==$POETRY_VERSION
