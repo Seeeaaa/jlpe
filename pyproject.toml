@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.12.10.02.05.25.0"
+version = "3.12.10.02.06.25.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -14,6 +14,8 @@ prophet = "^1.1.6"
 xgboost = "^3.0.2"
 lightgbm = "^4.6.0"
 catboost = "^1.2.8"
+optuna = "^4.3.0"
+shap = "^0.47.2"
 
 [tool.poetry.group.scalable_data.dependencies]
 dask = { extras = ["complete"], version = "^2025.5.1" }
