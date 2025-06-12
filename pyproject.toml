@@ -15,7 +15,7 @@ xgboost = "^3.0.2"
 lightgbm = "^4.6.0"
 catboost = "^1.2.8"
 optuna = "^4.3.0"
-shap = "^0.47.2"
+shap = "^0.48.0"
 
 [tool.poetry.group.scalable_data.dependencies]
 dask = { extras = ["complete"], version = "^2025.5.1" }
