@@ -1,4 +1,4 @@
-# JLPE - JupyterLab Portable Environment
+# JLPE — JupyterLab Portable Environment
 
 I created these Docker images because I use multiple PCs for my pet projects and need a consistent environment with all necessary libraries pre-installed.
 
