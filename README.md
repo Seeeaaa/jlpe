@@ -4,7 +4,7 @@ I created these Docker images because I use multiple PCs for my pet projects and
 
 ## Features
 
-- **Python version**: [3.12.x-slim-bookworm](https://hub.docker.com/_/python).
+- **Python version**: [3.13.x-slim-bookworm](https://hub.docker.com/_/python).
 - **Package Manager**: [Poetry](https://github.com/python-poetry/poetry) for dependency management.
 - **Environment**: [JupyterLab](https://github.com/jupyterlab/jupyterlab).
 - **Additional Libraries**: commonly used libraries.
@@ -20,9 +20,9 @@ I created these Docker images because I use multiple PCs for my pet projects and
 
 |tag|Description|Included Libraries|
 |---|---|---|
-|`base`|JupyterLab core|[JupyterLab extensions, linters, formatters](https://github.com/Seeeaaa/jlpe/blob/3.12.base/pyproject.toml)|
-|`main`|Everything from `base` + data manipulation/visualization|[NumPy, Pandas, Matplotlib, etc](https://github.com/Seeeaaa/jlpe/blob/3.12.main/pyproject.toml)|
-|`ml`|Everything from `main` + gradient boosting/time-series forecasting|[XGBoost, LightGBM, CatBoost, Prophet](https://github.com/Seeeaaa/jlpe/blob/3.12.ml/pyproject.toml)|
+|`base`|JupyterLab core|[JupyterLab extensions, linters, formatters](https://github.com/Seeeaaa/jlpe/blob/3.13.base/pyproject.toml)|
+|`main`|Everything from `base` + data manipulation/visualization|[NumPy, Pandas, Matplotlib, etc](https://github.com/Seeeaaa/jlpe/blob/3.13.main/pyproject.toml)|
+|`ml`|Everything from `main` + gradient boosting/time-series forecasting|[XGBoost, LightGBM, CatBoost, Prophet](https://github.com/Seeeaaa/jlpe/blob/3.13.ml/pyproject.toml)|
 
 ## Usage
 
