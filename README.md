@@ -21,8 +21,8 @@ I created these Docker images because I use multiple PCs for my pet projects and
 |tag|Description|Included Libraries|
 |---|---|---|
 |`base`|JupyterLab core|[JupyterLab extensions, linters, formatters](https://github.com/Seeeaaa/jlpe/blob/3.13.base/pyproject.toml)|
-|`main`|Everything from `base` + data manipulation/visualization|[NumPy, Pandas, Matplotlib, etc](https://github.com/Seeeaaa/jlpe/blob/3.12.main/pyproject.toml)|
-|`ml`|Everything from `main` + gradient boosting/time-series forecasting|[XGBoost, LightGBM, CatBoost, Prophet](https://github.com/Seeeaaa/jlpe/blob/3.12.ml/pyproject.toml)|
+|`main`|Everything from `base` + data manipulation/visualization|[NumPy, Pandas, Matplotlib, etc](https://github.com/Seeeaaa/jlpe/blob/3.13.main/pyproject.toml)|
+|`ml`|Everything from `main` + gradient boosting/time-series forecasting|[XGBoost, LightGBM, CatBoost, Prophet](https://github.com/Seeeaaa/jlpe/blob/3.13.ml/pyproject.toml)|
 
 ## Usage
 
