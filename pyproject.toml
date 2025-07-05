@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.5.02.07.25.0"
+version = "3.13.5.05.07.25.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -36,8 +36,9 @@ plotly = "^6.1.1"
 colorcet = "^3.1.0"
 bokeh = "^3.7.3"
 geopandas = "^1.0.1"
-# fixed because 0.2.1.post1 is not available for all platforms
+# 0.2.1.post1 is not available on all platforms; 1.0.0 requires Chromium
 kaleido = "0.2.1"
+# kaleido = "^1.0.0"
 
 [tool.poetry.group.lab.dependencies]
 jupyterlab = "^4.4.3"
