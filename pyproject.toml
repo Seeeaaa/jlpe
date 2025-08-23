@@ -15,16 +15,18 @@ tsfresh = { extras = ["dask"], version = "^0.21.0" }
 polars = "^1.32.3"
 
 [tool.poetry.group.data.dependencies]
+# numpy = "^2.3.2"
 numpy = "^2.2.6"
-pandas = { extras = ["performance"], version = "^2.3.0" }
-scikit-learn = "^1.7.0"
-scipy = "^1.15.3"
+pandas = { extras = ["performance"], version = "^2.3.2" }
+
+scikit-learn = "^1.7.1"
+scipy = "^1.16.1"
 statsmodels = "^0.14.4"
 
 [tool.poetry.group.visualization.dependencies]
-matplotlib = "^3.10.3"
+matplotlib = "^3.10.5"
 seaborn = "^0.13.2"
-plotly = "^6.1.1"
+plotly = "^6.3.0"
 colorcet = "^3.1.0"
 bokeh = "^3.7.3"
 geopandas = "^1.0.1"
@@ -35,7 +37,7 @@ kaleido = "0.2.1"
 jupyterlab = "^4.4.6"
 jupyterlab-execute-time = "^3.2.0"
 jupyterlab-code-formatter = "^3.0.2"
-jupyter-resource-usage = "^1.1.1"
+jupyter-resource-usage = "^1.2.0"
 autopep8 = "^2.3.2"
 black = "^25.1.0"
 isort = "^6.0.1"
