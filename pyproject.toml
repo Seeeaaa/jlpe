@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.5.05.07.25.0"
+version = "3.13.5.23.08.25.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -10,9 +10,9 @@ package-mode = false
 python = "3.13.5"
 
 [tool.poetry.group.scalable_data.dependencies]
-dask = { extras = ["complete"], version = "^2025.5.1" }
+dask = { extras = ["complete"], version = "^2025.7.0" }
 tsfresh = { extras = ["dask"], version = "^0.21.0" }
-polars = "^1.30.0"
+polars = "^1.32.3"
 
 [tool.poetry.group.data.dependencies]
 numpy = "^2.2.6"
@@ -32,14 +32,14 @@ geopandas = "^1.0.1"
 kaleido = "0.2.1"
 
 [tool.poetry.group.lab.dependencies]
-jupyterlab = "^4.4.3"
+jupyterlab = "^4.4.6"
 jupyterlab-execute-time = "^3.2.0"
 jupyterlab-code-formatter = "^3.0.2"
 jupyter-resource-usage = "^1.1.1"
 autopep8 = "^2.3.2"
 black = "^25.1.0"
 isort = "^6.0.1"
-ruff = "^0.12.1"
+ruff = "^0.12.10"
 yapf = "^0.43.0"
 nb-clean = ">=4.0.1"
 
