@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.5.17.10.25.0"
+version = "3.13.9.17.10.25.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "3.13.5"
+python = "3.13.9"
 
 [tool.poetry.group.lab.dependencies]
 jupyterlab = "^4.4.9"
