@@ -1,11 +1,11 @@
-ARG PYTHON_VERSION=3.13.5-slim-bookworm
+ARG PYTHON_VERSION=3.13.9-slim-bookworm
 FROM python:${PYTHON_VERSION} AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV VENV_PATH=/opt/poetry/venv
 
-ARG POETRY_VERSION=2.1.3
+ARG POETRY_VERSION=2.2.1
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential libgomp1 && \
