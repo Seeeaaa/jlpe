@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.9.17.10.25.0"
+version = "3.13.9.18.10.25.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -40,7 +40,7 @@ black = "^25.9.0"
 isort = "^7.0.0"
 ruff = "^0.14.1"
 yapf = "^0.43.0"
-nb-clean = ">=4.0.1"
+nb-clean = "^4.0.1"
 
 [build-system]
 requires = ["poetry-core"]
