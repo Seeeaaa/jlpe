@@ -8,7 +8,7 @@ ENV VENV_PATH=/opt/poetry/venv
 ARG POETRY_VERSION=2.2.1
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential libgomp1 && \
+    apt-get install -y --no-install-recommends build-essential libgomp1 git && \
     rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m venv $VENV_PATH && \
