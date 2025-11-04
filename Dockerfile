@@ -11,10 +11,10 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m venv $VENV_PATH
-RUN $VENV_PATH/bin/pip install -U pip setuptools
-RUN $VENV_PATH/bin/pip install poetry==$POETRY_VERSION
-RUN ln -s $VENV_PATH/bin/poetry /usr/local/bin/poetry
+RUN python3 -m venv $VENV_PATH && \
+    $VENV_PATH/bin/pip install -U pip setuptools && \
+    $VENV_PATH/bin/pip install poetry==$POETRY_VERSION && \
+    ln -s $VENV_PATH/bin/poetry /usr/local/bin/poetry
 
 WORKDIR /app
 COPY pyproject.toml ./
