@@ -7,6 +7,10 @@ ENV VENV_PATH=/opt/poetry/venv
 
 ARG POETRY_VERSION=2.2.1
 
+RUN apt-get update && \
+    apt-get install -y git && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN python3 -m venv $VENV_PATH && \
     $VENV_PATH/bin/pip install -U pip setuptools && \
     $VENV_PATH/bin/pip install poetry==$POETRY_VERSION && \
