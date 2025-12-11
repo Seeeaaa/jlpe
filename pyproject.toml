@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.9.10.12.25.0"
+version = "3.13.9.11.12.25.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -24,17 +24,17 @@ streamlit = "^1.50.0"
 [tool.poetry.group.scalable_data.dependencies]
 dask = { extras = ["complete"], version = "^2025.11.0" }
 tsfresh = { extras = ["dask"], version = "^0.21.1" }
-polars = "^1.35.2"
+polars = "^1.36.1"
 
 [tool.poetry.group.data.dependencies]
 numpy = "^2.3.5"
 pandas = { extras = ["performance"], version = "^2.3.3" }
-scikit-learn = "^1.7.2"
+scikit-learn = "^1.8.0"
 scipy = "^1.16.2"
-statsmodels = "^0.14.4"
+statsmodels = "^0.14.6"
 
 [tool.poetry.group.visualization.dependencies]
-matplotlib = "^3.10.7"
+matplotlib = "^3.10.8"
 seaborn = "^0.13.2"
 plotly = "^6.5.0"
 colorcet = "^3.1.0"
