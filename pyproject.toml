@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.9.13.12.25.0"
+version = "3.13.9.16.12.25.0"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -39,7 +39,7 @@ geopandas = "^1.0.1"
 kaleido = "^1.2.0"
 
 [tool.poetry.group.lab.dependencies]
-jupyterlab = "^4.5.0"
+jupyterlab = "^4.5.1"
 jupyterlab-execute-time = "^3.2.0"
 jupyterlab-code-formatter = "^3.0.2"
 jupyter-resource-usage = "^1.2.0"
