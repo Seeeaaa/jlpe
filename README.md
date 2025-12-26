@@ -4,7 +4,7 @@ I created these Docker images because I use multiple PCs for my pet projects and
 
 ## Features
 
-- **Python version**: [3.13.x-slim-bookworm](https://hub.docker.com/_/python).
+- **Python version**: [3.14.x-slim-bookworm](https://hub.docker.com/_/python).
 - **Package Manager**: [Poetry](https://github.com/python-poetry/poetry) for dependency management.
 - **Environment**: [JupyterLab](https://github.com/jupyterlab/jupyterlab).
 - **Additional Libraries**: commonly used libraries.
