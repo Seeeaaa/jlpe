@@ -23,7 +23,7 @@ tsfresh = { extras = ["dask"], version = "^0.21.1" }
 polars = "^1.36.1"
 
 [tool.poetry.group.data.dependencies]
-numpy = "^2.4.0"
+numpy = "^2.3.5"
 pandas = { extras = ["performance"], version = "^2.3.3" }
 scikit-learn = "^1.8.0"
 scipy = "^1.16.2"
