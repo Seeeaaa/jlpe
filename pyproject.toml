@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.9.22.12.25.0"
+version = "3.13.11.27.12.25.1"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "3.13.9"
+python = "3.13.11"
 
 [tool.poetry.group.ml.dependencies]
 xgboost = "^3.1.2"
@@ -23,7 +23,7 @@ tsfresh = { extras = ["dask"], version = "^0.21.1" }
 polars = "^1.36.1"
 
 [tool.poetry.group.data.dependencies]
-numpy = "^2.4.0"
+numpy = "^2.3.5"
 pandas = { extras = ["performance"], version = "^2.3.3" }
 scikit-learn = "^1.8.0"
 scipy = "^1.16.2"
