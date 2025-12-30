@@ -1,4 +1,4 @@
-# JLPE — JupyterLab Portable Environment
+# JupyterLab Portable Environment
 
 I created these Docker images because I use multiple PCs for my pet projects and need a consistent environment with all necessary libraries pre-installed.
 
@@ -70,8 +70,6 @@ If you want to connect to the Jupyter Server via VS Code, add two additional fla
 This is required because the VS Code Jupyter integration does not fully support Jupyter Server XSRF checks, unlike web browsers.
 
 > **Note:** These flags are intended for local development only. Do not use them when exposing Jupyter Server to external networks.
-
-
 
 ## Links
 
