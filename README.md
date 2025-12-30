@@ -71,8 +71,6 @@ This is required because the VS Code Jupyter integration does not fully support 
 
 > **Note:** These flags are intended for local development only. Do not use them when exposing Jupyter Server to external networks.
 
-
-
 ## Links
 
 [GitHub](https://github.com/Seeeaaa/jlpe)
