@@ -1,4 +1,4 @@
-# JLPE — JupyterLab Portable Environment
+# JupyterLab Portable Environment
 
 I created these Docker images because I use multiple PCs for my pet projects and need a consistent environment with all necessary libraries pre-installed.
 
@@ -71,6 +71,11 @@ This is required because the VS Code Jupyter integration does not fully support 
 
 > **Note:** These flags are intended for local development only. Do not use them when exposing Jupyter Server to external networks.
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 3.13.base
 ## Links
 
 [GitHub](https://github.com/Seeeaaa/jlpe)
