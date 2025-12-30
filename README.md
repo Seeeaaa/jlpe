@@ -7,14 +7,14 @@ I created these Docker images because I use multiple PCs for my pet projects and
 - **Python version**: [3.13.x-slim-bookworm](https://hub.docker.com/_/python).
 - **Package Manager**: [Poetry](https://github.com/python-poetry/poetry) for dependency management.
 - **Environment**: [JupyterLab](https://github.com/jupyterlab/jupyterlab).
-- **Additional Libraries**: commonly used libraries.
+- **Additional Libraries**: commonly used data science and ML libraries.
 
 ### Versioning
 
 - **`Dockerfile`**: lists base Python image and Poetry version.
 - **`pyproject.toml`**: defines tag dependencies and their versions.
 
-## Tags
+### Tags
 
 > **Note:** For a complete list of libraries and their versions, refer to the `pyproject.toml` file in the corresponding branch on GitHub.
 
@@ -42,7 +42,7 @@ docker run -it -p 8888:8888 vyxan/jlpe_image:<tag>
 
 ### Mount directories and start JupyterLab
 
-If you want to mount project directory and JupyterLab settings ([by default located](https://jupyterlab.readthedocs.io/en/stable/user/directories.html#jupyterlab-user-settings-directory) at `$HOME/.jupyter`), and start JupyterLab, you can run the container with the following command:
+If you want to mount a project directory and JupyterLab settings ([by default located](https://jupyterlab.readthedocs.io/en/stable/user/directories.html#jupyterlab-user-settings-directory) at `$HOME/.jupyter`), and start JupyterLab, you can run the container with the following command:
 
 #### Windows
 
@@ -50,7 +50,7 @@ If you want to mount project directory and JupyterLab settings ([by default loca
 docker run -it -p 8888:8888 `
 --mount type=bind,source=C:/project_directory,target=/app/project_directory `
 --mount type=bind,source=C:/Users/User/.jupyter,target=/root/.jupyter `
-vyxan/jlpe_image:<tag> -c "poetry run jupyter lab --allow-root --no-browser --ip=0.0.0.0"
+vyxan/jlpe_image:<tag> -c "poetry run jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888"
 ```
 
 #### Linux/MacOS
@@ -59,8 +59,20 @@ vyxan/jlpe_image:<tag> -c "poetry run jupyter lab --allow-root --no-browser --ip
 docker run -it -p 8888:8888 \
 --mount type=bind,source=/path/to/project_directory,target=/app/project_directory \
 --mount type=bind,source=/path/to/.jupyter,target=/root/.jupyter \
-vyxan/jlpe_image:<tag> -c "poetry run jupyter lab --allow-root --no-browser --ip=0.0.0.0"
+vyxan/jlpe_image:<tag> -c "poetry run jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888"
 ```
+
+#### VS Code integration
+If you want to connect to the Jupyter Server via VS Code, add two additional flags to the command:
+
+`--IdentityProvider.token="" --ServerApp.disable_check_xsrf=True`
+
+This is required because the VS Code Jupyter integration does not fully support Jupyter Server XSRF checks, unlike web browsers.
+
+> **Note:** These flags are intended for local development only. Do not use them when exposing Jupyter Server to external networks.
+
+
+
 ## Links
 
 [GitHub](https://github.com/Seeeaaa/jlpe)
