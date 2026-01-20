@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.11+slim-trixie.20260119"
+version = "3.13.11+slim-trixie.20260120"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -18,7 +18,7 @@ optuna = "^4.7.0"
 shap = "^0.50.0"
 
 [tool.poetry.group.scalable_data.dependencies]
-dask = { extras = ["complete"], version = "^2025.12.0" }
+dask = { extras = ["complete"], version = "^2026.1.1" }
 tsfresh = { extras = ["dask"], version = "^0.21.1" }
 polars = "^1.37.1"
 
