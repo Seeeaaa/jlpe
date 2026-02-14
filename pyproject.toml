@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.11+slim-trixie.20260207"
+version = "3.13.11+slim-trixie.20260214"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -41,14 +41,14 @@ geopandas = "^1.0.1"
 kaleido = "^1.2.0"
 
 [tool.poetry.group.lab.dependencies]
-jupyterlab = "^4.5.2"
+jupyterlab = "^4.5.4"
 jupyterlab-execute-time = "^3.2.0"
-jupyterlab-code-formatter = "^3.0.2"
+jupyterlab-code-formatter = "^3.0.3"
 jupyter-resource-usage = "^1.2.0"
 autopep8 = "^2.3.2"
 black = "^26.1.0"
 isort = "^7.0.0"
-ruff = "^0.15.0"
+ruff = "^0.15.1"
 yapf = "^0.43.0"
 nb-clean = "^4.0.1"
 ipywidgets = "^8.1.6"
