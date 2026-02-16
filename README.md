@@ -1,51 +1,52 @@
 # JupyterLab Portable Environment
-
-I created these Docker images because I use multiple PCs for my pet projects and need a consistent environment with all necessary libraries pre-installed.
+I created these Docker images to use the same fully configured JupyterLab environment across multiple machines.
 
 ## Features
-
-- **Python version**: [3.13.x-slim-trixie](https://hub.docker.com/_/python).
-- **Package Manager**: [Poetry](https://github.com/python-poetry/poetry) for dependency management.
+- **Python version**: based on official Python images (`python:<version>-slim-trixie`). The `latest` tag points to `3.13`; other versions are available via Docker tags (`3.11`, `3.12`).
+- **Package Manager**: [Poetry](https://github.com/python-poetry/poetry).
 - **Environment**: [JupyterLab](https://github.com/jupyterlab/jupyterlab).
-- **Additional Libraries**: commonly used data science and ML libraries.
+- **Libraries:** data manipulation, visualization, and ML packages.
 
 ### Versioning
+- The repository contains a single `Dockerfile` and `pyproject.toml`.
+- The Python version is defined at build time via Docker ARG.
+- Each Docker tag corresponds to a specific Python version.
 
-- **`Dockerfile`**: lists base Python image and Poetry version.
-- **`pyproject.toml`**: defines tag dependencies and their versions.
+### Supported Tags
+|Tag|Description|
+|-|-|
+|`3.11`|Full environment built on Python 3.11|
+|`3.12`|Full environment built on Python 3.12|
+|`3.13`|Full environment built on Python 3.13|
+|`latest`|Points to the current default Python version|
 
-### Tags
-
-> **Note:** For a complete list of libraries and their versions, refer to the `pyproject.toml` file in the corresponding branch on GitHub.
-
-|tag|Description|Included Libraries|
-|---|---|---|
-|`base`|JupyterLab core|[JupyterLab extensions, linters, formatters](https://github.com/Seeeaaa/jlpe/blob/3.13.base/pyproject.toml)|
-|`main`|Everything from `base` + data manipulation/visualization|[NumPy, Pandas, Matplotlib, etc](https://github.com/Seeeaaa/jlpe/blob/3.13.main/pyproject.toml)|
-|`ml`|Everything from `main` + gradient boosting/time-series forecasting|[XGBoost, LightGBM, CatBoost, Prophet](https://github.com/Seeeaaa/jlpe/blob/3.13.ml/pyproject.toml)|
+For a complete list of dependencies and their versions, refer to `pyproject.toml` in the `main` branch.
 
 ## Usage
+Containers run as root by default.
 
-> **Note:** currently, containers are configured to run as the root user.
-
-### Steps to get started:
-
-**Pull Docker Image**
-Replace <tag> with `base`, `main`, or `ml` to pull the corresponding image:
+**Pull Image**
 ```bash
 docker pull vyxan/jlpe_image:<tag>
 ```
-**Run the Docker Container**:
+Example:
+```bash
+docker pull vyxan/jlpe_image:3.13
+```
+
+**Run Container**:
 ```bash
 docker run -it -p 8888:8888 vyxan/jlpe_image:<tag>
 ```
+Example:
+```bash
+docker run -it -p 8888:8888 vyxan/jlpe_image:3.13
+```
 
 ### Mount directories and start JupyterLab
-
-If you want to mount a project directory and JupyterLab settings ([by default located](https://jupyterlab.readthedocs.io/en/stable/user/directories.html#jupyterlab-user-settings-directory) at `$HOME/.jupyter`), and start JupyterLab, you can run the container with the following command:
+If you want to mount a project directory and JupyterLab settings ([by default located](https://jupyterlab.readthedocs.io/en/stable/user/directories.html#jupyterlab-user-settings-directory) at `$HOME/.jupyter`), and start JupyterLab, run the container with the following command:
 
 #### Windows
-
 ```powershell
 docker run -it -p 8888:8888 `
 --mount type=bind,source=C:/project_directory,target=/app/project_directory `
@@ -54,7 +55,6 @@ vyxan/jlpe_image:<tag> -c "poetry run jupyter lab --allow-root --no-browser --ip
 ```
 
 #### Linux/MacOS
-
 ```bash
 docker run -it -p 8888:8888 \
 --mount type=bind,source=/path/to/project_directory,target=/app/project_directory \
@@ -63,11 +63,10 @@ vyxan/jlpe_image:<tag> -c "poetry run jupyter lab --allow-root --no-browser --ip
 ```
 
 #### VS Code integration
-If you want to connect to the Jupyter Server via VS Code, add two additional flags to the command:
-
+To connect via VS Code (for attaching to a running container), add:
 `--IdentityProvider.token="" --ServerApp.disable_check_xsrf=True`
 
-This is required because the VS Code Jupyter integration does not fully support Jupyter Server XSRF checks, unlike web browsers.
+This is required because the VS Code Jupyter integration does not fully support Jupyter Server XSRF checks.
 
 > **Note:** These flags are intended for local development only. Do not use them when exposing Jupyter Server to external networks.
 
