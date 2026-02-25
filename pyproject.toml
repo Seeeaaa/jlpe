@@ -41,9 +41,9 @@ geopandas = "^1.0.1"
 kaleido = "^1.2.0"
 
 [tool.poetry.group.lab.dependencies]
-jupyterlab = "^4.5.4"
-jupyterlab-execute-time = "^3.2.0"
+jupyterlab = "^4.5.5"
 jupyterlab-code-formatter = "^3.0.3"
+jupyterlab-execute-time = "^3.2.0"
 jupyter-resource-usage = "^1.2.0"
 autopep8 = "^2.3.2"
 black = "^26.1.0"
