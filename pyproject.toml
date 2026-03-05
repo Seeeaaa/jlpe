@@ -12,7 +12,7 @@ python = ">=3.11,<3.14"
 [tool.poetry.group.ml.dependencies]
 xgboost = "^3.2.0"
 lightgbm = "^4.6.0"
-catboost = "^1.2.8"
+catboost = "^1.2.10"
 prophet = "^1.1.6"
 optuna = "^4.7.0"
 shap = "^0.50.0"
