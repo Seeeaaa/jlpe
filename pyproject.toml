@@ -22,12 +22,14 @@ tsfresh = { extras = ["dask"], version = "^0.21.1" }
 
 [tool.poetry.group.data.dependencies]
 pandas = { extras = ["performance"], version = "^3.0.1" }
-polars = "^1.38.1"
-duckdb = "^1.5.0"
-pyarrow = "^23.0.1"
-dask = { extras = ["complete"], version = "^2026.1.2" }
 numpy = "^2.4.2"
 scipy = "^1.17.1"
+polars = "^1.38.1"
+dask = { extras = ["complete"], version = "^2026.1.2" }
+duckdb = "^1.5.0"
+pyarrow = "^23.0.1"
+SQLAlchemy = "^2.0.48"
+psycopg = { version = "^3.3.3", extras = ["binary", "pool"] }
 
 [tool.poetry.group.visualization.dependencies]
 matplotlib = "^3.10.8"
