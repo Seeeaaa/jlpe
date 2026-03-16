@@ -15,7 +15,7 @@ ENV POETRY_VIRTUALENVS_PATH=/opt/project-venvs
 ARG POETRY_VERSION=2.2.1
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential libgomp1 git && \
+    apt-get install -y --no-install-recommends build-essential libgomp1 git postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
 RUN python -m venv $POETRY_VENV && \
