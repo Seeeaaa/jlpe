@@ -15,7 +15,7 @@ lightgbm = "^4.6.0"
 catboost = "^1.2.10"
 prophet = "^1.3.0"
 optuna = "^4.8.0"
-shap = "^0.51.0"
+# shap = "^0.51.0"
 scikit-learn = "^1.8.0"
 statsmodels = "^0.14.6"
 tsfresh = { extras = ["dask"], version = "^0.21.1" }
