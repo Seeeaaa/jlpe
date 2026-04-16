@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.12+slim-trixie.20260413"
+version = "3.13.12+slim-trixie.20260416"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -19,7 +19,7 @@ optuna = "^4.8.0"
 scikit-learn = "^1.8.0"
 statsmodels = "^0.14.6"
 tsfresh = { extras = ["dask"], version = "^0.21.1" }
-# mlflow = "^3.10.1"
+# mlflow = "^3.11.1"
 
 [tool.poetry.group.data.dependencies]
 pandas = { extras = ["performance"], version = "^3.0.2" }
@@ -53,7 +53,7 @@ nb-clean = "^4.0.1"
 autopep8 = "^2.3.2"
 black = "^26.3.1"
 isort = "^8.0.1"
-ruff = "^0.15.10"
+ruff = "^0.15.11"
 yapf = "^0.43.0"
 
 [build-system]
