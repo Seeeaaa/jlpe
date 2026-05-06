@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.12+slim-trixie.20260505"
+version = "3.13.12+slim-trixie.20260506"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -30,7 +30,7 @@ dask = { extras = ["complete"], version = "^2026.3.0" }
 duckdb = "^1.5.2"
 pyarrow = "^24.0.0"
 SQLAlchemy = "^2.0.49"
-psycopg = { version = "^3.3.3", extras = ["binary", "pool"] }
+psycopg = { version = "^3.3.4", extras = ["binary", "pool"] }
 
 [tool.poetry.group.visualization.dependencies]
 matplotlib = "^3.10.9"
