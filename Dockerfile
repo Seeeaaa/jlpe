@@ -12,7 +12,7 @@ ENV POETRY_VIRTUALENVS_CREATE=1
 ENV POETRY_VIRTUALENVS_IN_PROJECT=0
 ENV POETRY_VIRTUALENVS_PATH=/opt/project-venvs
 
-ARG POETRY_VERSION=2.2.1
+ARG POETRY_VERSION=2.4.1
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential libgomp1 git postgresql-client && \
