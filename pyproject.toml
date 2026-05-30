@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jlpe"
-version = "3.13.13+slim-trixie.20260530"
+version = "3.13.13+slim-trixie.20260531"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = ["Seeeaaa"]
 readme = "README.md"
@@ -25,7 +25,7 @@ tsfresh = { extras = ["dask"], version = "^0.21.1" }
 pandas = { extras = ["performance"], version = "^3.0.3" }
 numpy = "^2.4.6"
 scipy = "^1.17.1"
-polars = "^1.41.1"
+polars = "^1.41.2"
 dask = { extras = ["complete"], version = "^2026.3.0" }
 duckdb = "^1.5.3"
 pyarrow = "^24.0.0"
