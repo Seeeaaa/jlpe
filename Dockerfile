@@ -47,7 +47,7 @@ with zipfile.ZipFile(whl) as z:
 EOF
 
 # Stage 2: JLPE runtime image
-FROM python:3.13.13-slim-trixie AS jlpe-runtime
+FROM python:3.13.14-slim-trixie AS jlpe-runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
