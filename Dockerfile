@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-ARG PYTHON_VERSION=3.13.13-slim-trixie
 
 # Stage 1: CUDA devel for compile
 FROM nvidia/cuda:12.9.2-devel-ubuntu24.04 AS lgbm-gpu-builder
@@ -48,7 +47,7 @@ with zipfile.ZipFile(whl) as z:
 EOF
 
 # Stage 2: JLPE runtime image
-FROM python:${PYTHON_VERSION} AS jlpe-runtime
+FROM python:3.13.13-slim-trixie AS jlpe-runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
