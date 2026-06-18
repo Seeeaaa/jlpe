@@ -29,7 +29,7 @@ polars = "^1.41.2"
 dask = { extras = ["complete"], version = "^2026.6.0" }
 duckdb = "^1.5.4"
 pyarrow = "^24.0.0"
-SQLAlchemy = "^2.0.50"
+SQLAlchemy = "^2.0.51"
 psycopg = { version = "^3.3.4", extras = ["binary", "pool"] }
 
 [tool.poetry.group.visualization.dependencies]
