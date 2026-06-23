@@ -18,14 +18,13 @@ optuna = "^4.9.0"
 # shap = "^0.52.0"
 scikit-learn = "^1.9.0"
 statsmodels = "^0.14.6"
-# tsfresh = { extras = ["dask"], version = "^0.21.2" }
-tsfresh = "^0.21.2"
+tsfresh = { extras = ["dask"], version = "^0.21.2" }
 # mlflow = "^3.13.0"
 
 [tool.poetry.group.data.dependencies]
-# pandas = { extras = ["performance"], version = "^3.0.3" }
-pandas = "^3.0.3"
-numpy = "^2.5.0"
+pandas = { extras = ["performance"], version = "^3.0.3" }
+# numpy = "^2.5.0"
+numpy = "^2.4.6"
 scipy = "^1.18.0"
 polars = "^1.41.2"
 dask = { extras = ["complete"], version = "^2026.6.0" }
