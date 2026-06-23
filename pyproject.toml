@@ -18,7 +18,8 @@ optuna = "^4.9.0"
 # shap = "^0.52.0"
 scikit-learn = "^1.9.0"
 statsmodels = "^0.14.6"
-tsfresh = { extras = ["dask"], version = "^0.21.2" }
+# tsfresh = { extras = ["dask"], version = "^0.21.2" }
+tsfresh = "^0.21.2"
 # mlflow = "^3.13.0"
 
 [tool.poetry.group.data.dependencies]
