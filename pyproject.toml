@@ -1,6 +1,6 @@
 [project]
 name = "jlpe"
-version = "3.13.14+slim-trixie.20260625"
+version = "3.13.14+slim-trixie.20260627"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = [{ name = "Seeeaaa" }]
 readme = "README.md"
@@ -41,7 +41,7 @@ visualization = [
     "plotly>=6.8.0,<7",
     "colorcet>=3.2.1,<4",
     "bokeh>=3.9.1,<4",
-    "geopandas>=1.1.3,<2",
+    "geopandas>=1.1.4,<2",
     "kaleido>=1.3.0,<2",
 ]
 
