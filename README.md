@@ -30,7 +30,7 @@ docker pull vyxan/jlpe_image:<tag>
 ```
 Example:
 ```bash
-docker pull vyxan/jlpe_image:3.13
+docker pull vyxan/jlpe_image:latest
 ```
 
 **Run container** (without mounts):
