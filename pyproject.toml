@@ -1,6 +1,6 @@
 [project]
 name = "jlpe"
-version = "3.13.14+slim-trixie.20260628"
+version = "3.13.14+slim-trixie.20260629"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = [{ name = "Seeeaaa" }]
 readme = "README.md"
@@ -20,11 +20,11 @@ ml = [
     "scikit-learn>=1.9.0,<2",
     "statsmodels>=0.14.6,<0.15",
     "tsfresh[dask]>=0.21.2,<0.22",
-    # "mlflow>=3.13.0,<4",
+    # "mlflow>=3.14.0,<4",
 ]
 
 data = [
-    "pandas[performance]>=3.0.3,<4",
+    "pandas[performance]>=3.0.4,<4",
     "numpy>=2.4.6,<3",
     "scipy>=1.18.0,<2",
     "polars>=1.42.0,<2",
