@@ -1,6 +1,6 @@
 [project]
 name = "jlpe"
-version = "3.13.14+slim-trixie.20260702"
+version = "3.13.14+slim-trixie.20260703"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = [{ name = "Seeeaaa" }]
 readme = "README.md"
@@ -37,13 +37,13 @@ data = [
 ]
 
 visualization = [
-    "matplotlib>=3.11.0,<4",
-    "seaborn>=0.13.2,<0.14",
-    "plotly>=6.8.0,<7",
-    "colorcet>=3.2.1,<4",
-    "bokeh>=3.9.1,<4",
-    "geopandas>=1.1.4,<2",
-    "kaleido>=1.3.0,<2",
+    "matplotlib==3.11.0",
+    "seaborn==0.13.2",
+    "plotly==6.8.0",
+    "colorcet==3.2.1",
+    "bokeh==3.9.1",
+    "geopandas==1.1.4",
+    "kaleido==1.3.0",
 ]
 
 jupyterlab = [
