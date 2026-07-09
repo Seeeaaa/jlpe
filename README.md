@@ -17,7 +17,7 @@ I try to update the image whenever a new library version or a new Python patch v
 |Tag|Python|Package manager|Description|
 |-|-|-|-|
 |`latest`, `3.13`|`python:3.13.x-slim-trixie`|`uv`|Full environment built on `Python 3.13` with `uv`|
-|`lgbm_gpu`|`python:3.13.x-slim-trixie`|`Poetry`|Full environment *(outdated)* built with GPU-compatible `LGBM` framework|
+|`lgbm_gpu`|`python:3.13.x-slim-trixie`|`uv`|Full environment built with GPU-compatible `LGBM` framework|
 
 For a complete list of dependencies and their versions, refer to `pyproject.toml` in [JLPE GitHub repository](https://github.com/Seeeaaa/jlpe).
 
