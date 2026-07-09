@@ -52,41 +52,32 @@ FROM python:3.13.14-slim-trixie AS jlpe-runtime
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-ENV POETRY_VENV=/opt/poetry/venv
-ENV PATH="$POETRY_VENV/bin:$PATH"
-ENV POETRY_CACHE_DIR=/opt/.cache
-ENV POETRY_VIRTUALENVS_CREATE=1
-ENV POETRY_VIRTUALENVS_IN_PROJECT=0
-ENV POETRY_VIRTUALENVS_PATH=/opt/project-venvs
+ENV UV_PROJECT_ENVIRONMENT=/opt/project-venv
+ENV UV_CACHE_DIR=/opt/.cache/uv
+ENV UV_PYTHON_DOWNLOADS=never
+ENV PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
 
-ARG POETRY_VERSION=2.4.1
+ARG UV_VERSION=0.11.23
 
-# Only ocl-icd-libopencl1 is new vs. the original - the ICD loader that
-# at runtime discovers the driver injected by NVIDIA Container Runtime.
-# No -dev packages, no CUDA, no driver binaries.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential libgomp1 git postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
-RUN python -m venv $POETRY_VENV && \
-    $POETRY_VENV/bin/pip install -U pip setuptools && \
-    $POETRY_VENV/bin/pip install "poetry==$POETRY_VERSION"
+RUN pip install "uv==$UV_VERSION"
 
 WORKDIR /app
 COPY pyproject.toml ./
+RUN uv sync --no-install-project --all-groups && rm -rf $UV_CACHE_DIR
 
-RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
-
-# Copy only the CUDA runtime lib from builder
+# Copy only the CUDA runtime libs from builder
 COPY --from=lgbm-gpu-builder /usr/local/cuda/lib64/libcudart.so* /usr/local/cuda/lib64/
 COPY --from=lgbm-gpu-builder /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64
 
-# Install GPU wheel from Stage 1
+# Install GPU wheel from Stage 1 into the uv-managed venv via uv pip
 COPY --from=lgbm-gpu-builder /lgbm-gpu-wheel/ /tmp/lgbm-gpu-wheel/
-RUN VENV_PATH=$(poetry env info --path) && \
-    $VENV_PATH/bin/pip install --force-reinstall --no-deps \
+RUN VIRTUAL_ENV=/opt/project-venv uv pip install --no-deps \
         /tmp/lgbm-gpu-wheel/lightgbm*.whl && \
     rm -rf /tmp/lgbm-gpu-wheel/
 
