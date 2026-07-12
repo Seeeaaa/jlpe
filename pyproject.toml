@@ -1,6 +1,6 @@
 [project]
 name = "jlpe"
-version = "3.13.14+slim-trixie.20260710"
+version = "3.13.14+slim-trixie.20260712"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = [{ name = "Seeeaaa" }]
 readme = "README.md"
@@ -30,7 +30,7 @@ data = [
     "polars==1.42.1",
     "dask[complete]==2026.7.0",
     "duckdb==1.5.4",
-    "pyarrow==24.0.0",
+    "pyarrow==25.0.0",
     "SQLAlchemy==2.0.51",
     "psycopg[binary,pool]==3.3.4",
 ]
