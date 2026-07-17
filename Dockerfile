@@ -8,7 +8,7 @@ ENV UV_CACHE_DIR=/opt/.cache/uv
 ENV UV_PYTHON_DOWNLOADS=never
 ENV PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
 
-ARG UV_VERSION=0.11.26
+ARG UV_VERSION=0.11.27
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
