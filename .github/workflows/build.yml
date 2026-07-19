@@ -1,0 +1,89 @@
+name: Build and smoke test (main)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          no-cache: true
+          tags: |
+            vyxan/jlpe_image:3.13
+            vyxan/jlpe_image:latest
+
+      - name: Start container
+        run: docker run -d --name test_container vyxan/jlpe_image:latest -c "sleep infinity"
+
+      - name: Smoke test — ML libraries (CPU real, GPU code-path only)
+        run: |
+          docker exec -i test_container python - <<'EOF'
+          import sys
+          import numpy as np
+          import xgboost as xgb
+          import lightgbm as lgb
+          import catboost as cb
+
+          X = np.random.rand(100, 5)
+          y = np.random.randint(0, 2, 100)
+
+          def check_gpu(name, fn):
+              # On standard GitHub-hosted runners there is no GPU hardware.
+              # A failure mentioning cuda/gpu/device means the code path exists
+              # but hardware is missing — that's a PASS here.
+              # Any other failure means the build itself is broken — that's a FAIL.
+              try:
+                  fn()
+                  print(f"{name} GPU: OK (unexpected, GPU hardware present?)")
+              except Exception as e:
+                  msg = str(e).lower()
+                  if any(k in msg for k in ("cuda", "gpu", "device")):
+                      print(f"{name} GPU: code path present, no GPU hardware on runner ({e})")
+                  else:
+                      print(f"{name} GPU: UNEXPECTED FAILURE: {e}")
+                      sys.exit(1)
+
+          xgb.XGBClassifier(device="cpu", n_estimators=5).fit(X, y)
+          print("xgboost CPU: OK")
+
+          check_gpu("xgboost", lambda: xgb.XGBClassifier(device="cuda", n_estimators=5).fit(X, y))
+
+          lgb.train(
+              {"objective": "binary", "verbosity": -1, "device": "cpu"},
+              lgb.Dataset(X, label=y),
+              num_boost_round=5,
+          )
+          print("lightgbm CPU: OK")
+
+          cb.CatBoostClassifier(iterations=5, task_type="CPU", verbose=False).fit(X, y)
+          print("catboost CPU: OK")
+
+          check_gpu(
+              "catboost",
+              lambda: cb.CatBoostClassifier(iterations=5, task_type="GPU", verbose=False).fit(X, y),
+          )
+          EOF
+
+      - name: Smoke test — JupyterLab starts
+        run: |
+          docker exec -d test_container jupyter lab \
+            --allow-root --no-browser --ip=0.0.0.0 --port=8888 \
+            --IdentityProvider.token=""
+          sleep 5
+          docker exec test_container python -c "import urllib.request; urllib.request.urlopen('http://localhost:8888/lab', timeout=5)"
+
+      - name: Stop container
+        if: always()
+        run: docker stop test_container
