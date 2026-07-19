@@ -15,7 +15,7 @@ RUN apt-get update && \
         build-essential libgomp1 git postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install "uv==$UV_VERSION"
+RUN pip install --no-cache-dir "uv==$UV_VERSION"
 
 WORKDIR /app
 COPY pyproject.toml ./
