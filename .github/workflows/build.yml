@@ -24,18 +24,52 @@ jobs:
             vyxan/jlpe_image:3.13
             vyxan/jlpe_image:latest
 
-      - name: Start container
-        run: docker run -d --name test_container vyxan/jlpe_image:latest -c "sleep infinity"
+      - name: Save image to tar
+        run: docker save vyxan/jlpe_image:latest -o jlpe-image.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jlpe-image
+          path: jlpe-image.tar
+          retention-days: 1
+
+  smoke-test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: jlpe-image
+
+      - name: Load image
+        run: docker load -i jlpe-image.tar
 
       - name: Verify uv version
         run: |
           expected=$(grep -oP '(?<=ARG UV_VERSION=)\S+' Dockerfile)
-          actual=$(docker exec test_container uv --version | awk '{print $2}')
+          actual=$(docker run --rm --entrypoint uv vyxan/jlpe_image:latest --version | awk '{print $2}')
           if [ "$actual" != "$expected" ]; then
             echo "uv version mismatch: Dockerfile says $expected, image has $actual"
             exit 1
           fi
           echo "uv version: OK ($actual)"
+
+      - name: Start container
+        run: docker run -d --name test_container vyxan/jlpe_image:latest -c "sleep infinity"
+
+      # - name: Verify uv version
+      #   run: |
+      #     expected=$(grep -oP '(?<=ARG UV_VERSION=)\S+' Dockerfile)
+      #     actual=$(docker exec test_container uv --version | awk '{print $2}')
+      #     if [ "$actual" != "$expected" ]; then
+      #       echo "uv version mismatch: Dockerfile says $expected, image has $actual"
+      #       exit 1
+      #     fi
+      #     echo "uv version: OK ($actual)"
 
       - name: Smoke test - data stack
         run: |
