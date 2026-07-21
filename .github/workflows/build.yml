@@ -40,8 +40,9 @@ jobs:
       - name: Smoke test - data stack
         run: |
           docker exec -i test_container python - <<'EOF'
-          import pandas as pd
           import numpy as np
+          import pandas as pd
+          import polars as pl
           import pyarrow as pa
           import duckdb
           import geopandas as gpd
@@ -52,6 +53,12 @@ jobs:
           result = duckdb.sql("select sum(a) from arrow_tbl").fetchone()
           assert result[0] == 6, f"unexpected duckdb result: {result}"
           print("pandas -> pyarrow -> duckdb: OK")
+
+          pl_df = pl.from_pandas(df)
+          pl_arrow = pl_df.to_arrow()
+          result_pl = duckdb.sql("select sum(a) from pl_arrow").fetchone()
+          assert result_pl[0] == 6, f"unexpected polars/duckdb result: {result_pl}"
+          print("pandas -> polars -> pyarrow -> duckdb: OK")
 
           gdf = gpd.GeoDataFrame({"geometry": gpd.points_from_xy([0, 1], [0, 1])})
           assert len(gdf) == 2
