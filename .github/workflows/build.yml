@@ -187,6 +187,7 @@ jobs:
           assert len(forecast) == 5
           print("prophet: OK")
           EOF
+
       - name: Smoke test - scipy, sklearn, statsmodels, optuna, sqlalchemy, dask
         run: |
           docker exec -i test_container python - <<'EOF'
