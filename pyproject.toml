@@ -25,7 +25,7 @@ ml = [
 
 data = [
     "pandas[performance]==3.0.3",
-    "numpy==2.4.6",
+    "numpy==2.5.1",
     "scipy==1.18.0",
     "polars==1.42.1",
     "dask[complete]==2026.7.1",
