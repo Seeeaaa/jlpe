@@ -27,7 +27,7 @@ data = [
     "pandas[performance]==3.0.3",
     "numpy==2.5.1",
     "scipy==1.18.0",
-    "polars==1.42.1",
+    "polars==1.43.0",
     "dask[complete]==2026.7.1",
     "duckdb==1.5.4",
     "pyarrow==25.0.0",
