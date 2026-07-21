@@ -1,4 +1,8 @@
-FROM python:3.13.13-slim-trixie
+ARG UV_VERSION=0.11.30
+
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
+FROM python:3.13.14-slim-trixie
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -8,14 +12,12 @@ ENV UV_CACHE_DIR=/opt/.cache/uv
 ENV UV_PYTHON_DOWNLOADS=never
 ENV PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
 
-ARG UV_VERSION=0.11.30
-
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential libgomp1 git postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir "uv==$UV_VERSION"
+COPY --from=uv /uv /uvx /bin/
 
 WORKDIR /app
 COPY pyproject.toml ./
