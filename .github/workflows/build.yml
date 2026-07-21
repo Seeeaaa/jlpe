@@ -27,7 +27,30 @@ jobs:
       - name: Start container
         run: docker run -d --name test_container vyxan/jlpe_image:latest -c "sleep infinity"
 
-      - name: Smoke test — ML libraries (CPU real, GPU code-path only)
+      - name: Smoke test - data stack
+        run: |
+          docker exec -i test_container python - <<'EOF'
+          import pandas as pd
+          import numpy as np
+          import pyarrow as pa
+          import duckdb
+          import geopandas as gpd
+          import psycopg
+
+          df = pd.DataFrame({"a": [1, 2, 3], "b": [4.0, 5.0, 6.0]})
+          arrow_tbl = pa.Table.from_pandas(df)
+          result = duckdb.sql("select sum(a) from arrow_tbl").fetchone()
+          assert result[0] == 6, f"unexpected duckdb result: {result}"
+          print("pandas -> pyarrow -> duckdb: OK")
+
+          gdf = gpd.GeoDataFrame({"geometry": gpd.points_from_xy([0, 1], [0, 1])})
+          assert len(gdf) == 2
+          print("geopandas: OK")
+
+          print("psycopg import: OK")
+          EOF
+
+      - name: Smoke test - ML libraries (CPU real, GPU code-path only)
         run: |
           docker exec -i test_container python - <<'EOF'
           import sys
@@ -42,8 +65,8 @@ jobs:
           def check_gpu(name, fn):
               # On standard GitHub-hosted runners there is no GPU hardware.
               # A failure mentioning cuda/gpu/device means the code path exists
-              # but hardware is missing — that's a PASS here.
-              # Any other failure means the build itself is broken — that's a FAIL.
+              # but hardware is missing - that's a PASS here.
+              # Any other failure means the build itself is broken - that's a FAIL.
               try:
                   fn()
                   print(f"{name} GPU: OK (unexpected, GPU hardware present?)")
@@ -76,7 +99,7 @@ jobs:
           )
           EOF
 
-      - name: Smoke test — JupyterLab starts
+      - name: Smoke test - JupyterLab starts
         run: |
           docker exec -d test_container jupyter lab \
             --allow-root --no-browser --ip=0.0.0.0 --port=8888 \
