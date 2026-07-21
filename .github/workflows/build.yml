@@ -27,6 +27,16 @@ jobs:
       - name: Start container
         run: docker run -d --name test_container vyxan/jlpe_image:latest -c "sleep infinity"
 
+      - name: Verify uv version
+        run: |
+          expected=$(grep -oP '(?<=ARG UV_VERSION=)\S+' Dockerfile)
+          actual=$(docker exec test_container uv --version | awk '{print $2}')
+          if [ "$actual" != "$expected" ]; then
+            echo "uv version mismatch: Dockerfile says $expected, image has $actual"
+            exit 1
+          fi
+          echo "uv version: OK ($actual)"
+
       - name: Smoke test - data stack
         run: |
           docker exec -i test_container python - <<'EOF'
