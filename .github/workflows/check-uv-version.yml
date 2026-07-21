@@ -1,6 +1,10 @@
 name: Check uv version
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
   schedule:
     - cron: "0 6 * * *"  # every day, 06:00 UTC
   workflow_dispatch:
@@ -9,7 +13,7 @@ jobs:
   check-uv-version:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
       - name: Get current uv version from Dockerfile
         id: current
@@ -41,7 +45,7 @@ jobs:
 
       - name: Create pull request
         if: steps.compare.outputs.up_to_date == 'false'
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}
           commit-message: "build(deps): bump uv from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}"
