@@ -120,6 +120,23 @@ jobs:
           )
           EOF
 
+      - name: Smoke test - prophet
+              run: |
+                docker exec -i test_container python - <<'EOF'
+                import pandas as pd
+                from prophet import Prophet
+
+                df = pd.DataFrame({
+                    "ds": pd.date_range("2026-01-01", periods=30),
+                    "y": range(30),
+                })
+                model = Prophet()
+                model.fit(df)
+                forecast = model.predict(df.tail(5))
+                assert len(forecast) == 5
+                print("prophet: OK")
+                EOF
+
       - name: Smoke test - JupyterLab starts
         run: |
           docker exec -d test_container jupyter lab \
