@@ -1,0 +1,30 @@
+name: Check dependency freshness
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pyproject.toml"
+  workflow_dispatch:
+
+jobs:
+  check-outdated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Sync environment
+        run: uv sync --all-groups
+
+      - name: Check outdated packages
+        run: |
+          outdated=$(uv pip list --outdated)
+          if [ -n "$outdated" ]; then
+            echo "$outdated"
+            echo "::warning::Found outdated packages, see job log"
+          else
+            echo "All packages up to date"
+          fi
