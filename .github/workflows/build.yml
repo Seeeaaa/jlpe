@@ -216,13 +216,33 @@ jobs:
           print("scipy, sklearn, statsmodels, optuna: OK (import only)")
           EOF
 
-      - name: Smoke test - JupyterLab starts
+      - name: Smoke test - JupyterLab starts and kernel is registered
         run: |
           docker exec -d test_container jupyter lab \
             --allow-root --no-browser --ip=0.0.0.0 --port=8888 \
             --IdentityProvider.token=""
-          sleep 5
-          docker exec test_container python -c "import urllib.request; urllib.request.urlopen('http://localhost:8888/lab', timeout=5)"
+
+          echo "Waiting for JupyterLab to respond..."
+          for i in $(seq 1 20); do
+            if docker exec test_container python -c "
+          import urllib.request
+          urllib.request.urlopen('http://localhost:8888/lab', timeout=2)
+          " 2>/dev/null; then
+              echo "JupyterLab is up after ${i} attempt(s)"
+              break
+            fi
+            if [ "$i" -eq 20 ]; then
+              echo "JupyterLab did not respond after 20 attempts"
+              docker logs test_container
+              exit 1
+            fi
+            sleep 1
+          done
+
+          echo "Checking kernel registration..."
+          docker exec test_container jupyter kernelspec list | grep -qi python3 \
+            || { echo "No python3 kernel registered"; exit 1; }
+          echo "Kernel check: OK"
 
       - name: Stop container
         if: always()
