@@ -50,6 +50,27 @@ jobs:
           print("psycopg import: OK")
           EOF
 
+      - name: Smoke test - tsfresh
+        run: |
+          docker exec -i test_container python - <<'EOF'
+          import pandas as pd
+          from tsfresh import extract_features
+          from tsfresh.feature_extraction import MinimalFCParameters
+
+          df = pd.DataFrame({
+              "id": [1] * 10,
+              "time": range(10),
+              "value": [1, 2, 3, 4, 5, 4, 3, 2, 1, 0],
+          })
+          features = extract_features(
+              df, column_id="id", column_sort="time",
+              default_fc_parameters=MinimalFCParameters(),
+              disable_progressbar=True,
+          )
+          assert not features.empty
+          print("tsfresh: OK")
+          EOF
+
       - name: Smoke test - ML libraries (CPU real, GPU code-path only)
         run: |
           docker exec -i test_container python - <<'EOF'
