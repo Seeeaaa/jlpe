@@ -15,7 +15,7 @@ RUN apt-get update && \
         build-essential libgomp1 git postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir "uv==$UV_VERSION"
+COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /bin/
 
 WORKDIR /app
 COPY pyproject.toml ./
