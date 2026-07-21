@@ -136,6 +136,31 @@ jobs:
           assert len(forecast) == 5
           print("prophet: OK")
           EOF
+      - name: Smoke test - scipy, sklearn, statsmodels, optuna, sqlalchemy, dask
+          run: |
+            docker exec -i test_container python - <<'EOF'
+            import pandas as pd
+            import scipy
+            import sklearn
+            import statsmodels
+            import optuna
+            from sqlalchemy import create_engine
+            import dask.dataframe as dd
+
+            # dask[complete] pulls a large dependency tree that can silently
+            # break against pinned pandas/numpy versions, so this executes
+            # a real computation instead of just importing
+            ddf = dd.from_pandas(pd.DataFrame({"a": [1, 2, 3]}), npartitions=1)
+            assert ddf["a"].sum().compute() == 6
+            print("dask: OK")
+
+            # create_engine does not open a connection, it only validates
+            # that the psycopg driver is registered and importable via sqlalchemy
+            create_engine("postgresql+psycopg://")
+            print("sqlalchemy + psycopg driver: OK")
+
+            print("scipy, sklearn, statsmodels, optuna: OK (import only)")
+            EOF
 
       - name: Smoke test - JupyterLab starts
         run: |
