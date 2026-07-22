@@ -1,0 +1,60 @@
+name: Check python version
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  check-python-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Get current python version from Dockerfile
+        id: current
+        run: |
+          version=$(grep -oP '(?<=FROM python:)[0-9.]+(?=-slim-trixie)' Dockerfile)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Get latest matching tag from Docker Hub
+        id: latest
+        run: |
+          minor=$(echo "${{ steps.current.outputs.version }}" | cut -d. -f1,2)
+          latest=$(curl -s "https://hub.docker.com/v2/repositories/library/python/tags?page_size=100&name=${minor}." \
+            | jq -r '.results[].name' \
+            | grep -E "^${minor}\.[0-9]+-slim-trixie$" \
+            | sed 's/-slim-trixie$//' \
+            | sort -V | tail -1)
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          if [ "${{ steps.current.outputs.version }}" = "${{ steps.latest.outputs.version }}" ]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update Dockerfile
+        if: steps.compare.outputs.up_to_date == 'false'
+        run: |
+          sed -i "s/FROM python:${{ steps.current.outputs.version }}-slim-trixie/FROM python:${{ steps.latest.outputs.version }}-slim-trixie/" Dockerfile
+
+      - name: Create pull request
+        if: steps.compare.outputs.up_to_date == 'false'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.PAT_FOR_BOTS }}
+          commit-message: "build(deps): bump python from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}"
+          title: "build(deps): bump python from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}"
+          body: |
+            Bumps python from `${{ steps.current.outputs.version }}` to `${{ steps.latest.outputs.version }}` (slim-trixie) in the Dockerfile.
+          branch: bump-python-version
+          labels: dependencies,docker
+          delete-branch: true
