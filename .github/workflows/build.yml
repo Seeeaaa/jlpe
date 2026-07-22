@@ -12,6 +12,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    outputs:
+      image: ${{ steps.filter.outputs.image }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            # Only these files define the actual image content.
+            # Changes to .github/workflows/** must NOT trigger this.
+            image:
+              - 'Dockerfile'
+              - 'pyproject.toml'
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -251,3 +268,30 @@ jobs:
       - name: Stop container
         if: always()
         run: docker stop test_container
+
+  push:
+    needs: [changes, smoke-test]
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.image == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: jlpe-image
+
+      - name: Load image
+        run: docker load -i jlpe-image.tar
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push image
+        run: |
+          docker push vyxan/jlpe_image:3.13
+          docker push vyxan/jlpe_image:latest
