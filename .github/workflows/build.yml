@@ -48,7 +48,7 @@ jobs:
             vyxan/jlpe_image:latest
 
       - name: Save image to tar
-        run: docker save vyxan/jlpe_image:latest -o jlpe-image.tar
+        run: docker save vyxan/jlpe_image:3.13 vyxan/jlpe_image:latest -o jlpe-image.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v7
