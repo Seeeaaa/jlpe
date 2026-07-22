@@ -275,11 +275,17 @@ jobs:
 
   push:
     needs: [changes, smoke-test]
-    if: >
-      (github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      needs.changes.outputs.image == 'true') ||
-      github.event.inputs.force_push == 'true'
+    if: |
+      always() &&
+      needs.smoke-test.result == 'success' &&
+      (
+        (github.event_name == 'push' &&
+         needs.changes.result == 'success' &&
+         needs.changes.outputs.image == 'true') ||
+        (github.event_name == 'workflow_dispatch' &&
+         github.ref == 'refs/heads/main' &&
+         github.event.inputs.force_push == 'true')
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Download image artifact
