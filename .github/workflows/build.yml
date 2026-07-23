@@ -23,7 +23,7 @@ jobs:
       image: ${{ steps.filter.outputs.image }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -87,16 +87,6 @@ jobs:
 
       - name: Start container
         run: docker run -d --name test_container vyxan/jlpe_image:latest -c "sleep infinity"
-
-      # - name: Verify uv version
-      #   run: |
-      #     expected=$(grep -oP '(?<=ARG UV_VERSION=)\S+' Dockerfile)
-      #     actual=$(docker exec test_container uv --version | awk '{print $2}')
-      #     if [ "$actual" != "$expected" ]; then
-      #       echo "uv version mismatch: Dockerfile says $expected, image has $actual"
-      #       exit 1
-      #     fi
-      #     echo "uv version: OK ($actual)"
 
       - name: Smoke test - data stack
         run: |
