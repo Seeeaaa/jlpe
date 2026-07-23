@@ -302,5 +302,7 @@ jobs:
 
       - name: Push image
         run: |
-          docker push vyxan/jlpe_image:${{ needs.build.outputs.python_version }}
           docker push vyxan/jlpe_image:latest
+          docker push vyxan/jlpe_image:${{ needs.build.outputs.python_version }}
+          docker push vyxan/jlpe_image:${{ github.sha }}
+          
