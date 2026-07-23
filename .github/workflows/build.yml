@@ -56,11 +56,12 @@ jobs:
           load: true
           no-cache: true
           tags: |
-            vyxan/jlpe_image:${{ steps.pyver.outputs.version }}
             vyxan/jlpe_image:latest
+            vyxan/jlpe_image:${{ steps.pyver.outputs.version }}
+            vyxan/jlpe_image:${{ github.sha }}
 
       - name: Save image to tar
-        run: docker save vyxan/jlpe_image:${{ steps.pyver.outputs.version }} vyxan/jlpe_image:latest -o jlpe-image.tar
+        run: docker save vyxan/jlpe_image:latest vyxan/jlpe_image:${{ steps.pyver.outputs.version }} vyxan/jlpe_image:${{ github.sha }} -o jlpe-image.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v7
