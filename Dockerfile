@@ -1,4 +1,4 @@
-ARG UV_VERSION=0.11.31
+ARG UV_VERSION=0.11.32
 ARG PYTHON_VERSION=3.13.14-slim-trixie
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
