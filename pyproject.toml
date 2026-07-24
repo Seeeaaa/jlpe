@@ -52,7 +52,7 @@ jupyterlab = [
     "ipywidgets==8.1.8",
     "nb-clean==4.0.1",
     "jupyter-ruff==0.3.1",
-    "tqdm==4.69.0",
+    "tqdm==4.69.1",
 ]
 
 theme = [
