@@ -1,0 +1,49 @@
+name: Update uv.lock
+
+concurrency:
+  group: update-lock-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    paths:
+      - "pyproject.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # PAT is required instead of the default GITHUB_TOKEN so that the
+          # resulting push is treated as a "real" push and re-triggers
+          # build.yml (pull_request/synchronize) on this branch.
+          token: ${{ secrets.PAT_FOR_BOTS }}
+
+      - name: Extract uv version from Dockerfile
+        id: uvver
+        run: |
+          version=$(grep -oP '(?<=ARG UV_VERSION=)\S+' Dockerfile)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ steps.uvver.outputs.version }}
+
+      - name: Regenerate uv.lock
+        run: uv lock
+
+      - name: Commit uv.lock if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: regenerate uv.lock"
+          file_pattern: uv.lock
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
