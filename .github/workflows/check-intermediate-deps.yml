@@ -1,0 +1,52 @@
+name: Check intermediate dependencies
+
+on:
+  schedule:
+    - cron: "0 5 * * *"  # daily, before check-python-version/check-uv-version at 06:00
+  workflow_dispatch:
+
+jobs:
+  check-intermediate-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Extract uv version from Dockerfile
+        id: uvver
+        run: |
+          version=$(grep -oP '(?<=ARG UV_VERSION=)\S+' Dockerfile)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ steps.uvver.outputs.version }}
+
+      - name: Upgrade lock file
+        run: uv lock --upgrade
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet -- uv.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create pull request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.PAT_FOR_BOTS }}
+          add-paths: uv.lock
+          commit-message: "build(deps): upgrade transitive dependencies in uv.lock"
+          title: "build(deps): upgrade transitive dependencies in uv.lock"
+          body: |
+            Automated `uv lock --upgrade` run. Only transitive/indirect
+            dependency versions are affected — top-level pins in
+            `pyproject.toml` are unchanged.
+          branch: upgrade-intermediate-deps
+          labels: dependencies
+          delete-branch: true
