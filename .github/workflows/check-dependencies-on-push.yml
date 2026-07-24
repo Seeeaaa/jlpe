@@ -2,7 +2,7 @@ name: Check dependency freshness
 
 on:
   push:
-    branches: [main]
+    branches: [conservative]
     paths:
       - "pyproject.toml"
   workflow_dispatch:

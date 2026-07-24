@@ -2,7 +2,7 @@ name: Update PR branches
 
 on:
   push:
-    branches: [main]
+    branches: [conservative]
 
 jobs:
   update-branches:
@@ -11,7 +11,7 @@ jobs:
       pull-requests: write
       contents: write
     steps:
-      - name: Update open PR branches to latest main
+      - name: Update open PR branches to latest conservative
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.PAT_FOR_BOTS }}
@@ -20,7 +20,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: "open",
-              base: "main",
+              base: "conservative",
             });
 
             for (const pr of prs.data) {

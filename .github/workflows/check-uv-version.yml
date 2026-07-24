@@ -2,7 +2,7 @@ name: Check uv version
 
 on:
   push:
-    branches: [main]
+    branches: [conservative]
     paths:
       - "Dockerfile"
   schedule:
