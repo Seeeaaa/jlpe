@@ -13,11 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Extract Python version
+        id: pyver
+        run: |
+          version=$(grep -oP '(?<=ARG PYTHON_VERSION=)[0-9.]+' Dockerfile)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ steps.pyver.outputs.version }}
 
       - name: Sync environment
-        run: uv sync --all-groups
+        run: uv sync --all-groups --python ${{ steps.pyver.outputs.version }}
 
       - name: Check outdated packages
         run: |
