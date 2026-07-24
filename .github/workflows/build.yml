@@ -32,6 +32,7 @@ jobs:
             image:
               - 'Dockerfile'
               - 'pyproject.toml'
+              - 'uv.lock'
 
   build:
     runs-on: ubuntu-latest
