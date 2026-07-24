@@ -6,6 +6,9 @@ authors = [{ name = "Seeeaaa" }]
 readme = "README.md"
 requires-python = ">=3.13"
 
+# Pinned top-level versions live here; exact resolved versions
+# (including transitive dependencies) are tracked in uv.lock,
+# generated in CI - do not edit uv.lock by hand.
 [tool.uv]
 package = false
 
