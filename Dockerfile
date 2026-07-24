@@ -20,7 +20,7 @@ RUN apt-get update && \
 COPY --from=uv /uv /uvx /bin/
 
 WORKDIR /app
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 RUN uv sync --no-install-project --all-groups && rm -rf $UV_CACHE_DIR
 
 EXPOSE 8888
