@@ -46,45 +46,46 @@ jobs:
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}
 
-      - name: Compute and apply new version date
-        id: bump
+      - name: Compute new version date
         run: |
           python_version_full=$(grep -oP '(?<=ARG PYTHON_VERSION=)\S+' Dockerfile)
           prefix="${python_version_full/-/+}"
           new_version="${prefix}.$(date -u +%Y%m%d)"
           current_version=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml)
-
-          if [ "$current_version" = "$new_version" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
+          if [ "$current_version" != "$new_version" ]; then
             sed -i "s/^version = \".*\"/version = \"${new_version}\"/" pyproject.toml
-            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Extract uv version from Dockerfile
-        if: steps.bump.outputs.changed == 'true'
         id: uvver
         run: |
           version=$(grep -oP '(?<=ARG UV_VERSION=)\S+' Dockerfile)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Install uv
-        if: steps.bump.outputs.changed == 'true'
         uses: astral-sh/setup-uv@v7
         with:
           version: ${{ steps.uvver.outputs.version }}
 
-      - name: Sync uv.lock with new version
-        if: steps.bump.outputs.changed == 'true'
+      - name: Sync uv.lock
         run: uv lock
 
+      - name: Check if anything actually changed
+        id: diff
+        run: |
+          if git diff --quiet -- pyproject.toml uv.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Commit and push
-        if: steps.bump.outputs.changed == 'true'
+        if: steps.diff.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pyproject.toml uv.lock
-          git commit -m "chore: bump image version date [skip ci]"
+          git commit -m "chore: sync uv.lock and bump image version date [skip ci]"
           git push
 
       - name: Resolve final SHA
