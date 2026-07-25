@@ -8,16 +8,17 @@ I created this Docker image to provide a consistent, fully configured JupyterLab
 - **Libraries:** data manipulation, visualization, and machine learning
 
 ### Versioning
+I try to update the image whenever a new library version or a new Python patch version is released. When a new library version conflicts with existing dependencies, I resolve the issue on a case-by-case basis. For example, when migrating to pandas 3.0, shap and mlflow were excluded due to compatibility issues and may be re-added once resolved.
 - The version format is `{python_version}+{image_variant}.{build_date}`, for example, `3.13.14+slim-trixie.20260623` means Python 3.13.14, built on the `slim-trixie` Debian image.
 - Each Docker tag corresponds to a specific JLPE version.
 - The repository contains a `Dockerfile`, a `pyproject.toml`, and a `uv.lock`. Top-level dependency versions are pinned in `pyproject.toml`; `uv.lock` records the exact resolved versions of every dependency, including transitive ones, so the same `pyproject.toml` always produces the same environment.
-I try to update the image whenever a new library version or a new Python patch version is released. When a new library version conflicts with existing dependencies, I resolve the issue on a case-by-case basis. For example, when migrating to pandas 3.0, shap and mlflow were excluded due to compatibility issues and may be re-added once resolved.
+
 
 ### Supported tags
 |Tag|Python|Package manager|Description|
 |-|-|-|-|
 |`latest`, `3.13`|`python:3.13.x-slim-trixie`|`uv`|Full environment built on `Python 3.13` with `uv`|
-|`lgbm_gpu`|`python:3.13.x-slim-trixie`|`uv`|Full environment built with GPU-compatible `LGBM` framework|
+|`lgbm_gpu`|`python:3.13.x-slim-trixie`|`uv`|*(outdated)* Full environment built with GPU-compatible `LGBM` framework|
 
 For a complete list of dependencies and their versions, refer to `pyproject.toml` in [JLPE GitHub repository](https://github.com/Seeeaaa/jlpe).
 
