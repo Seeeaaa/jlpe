@@ -25,7 +25,7 @@ jobs:
         id: latest
         run: |
           minor=$(echo "${{ steps.current.outputs.version }}" | cut -d. -f1,2)
-          latest=$(curl -s "https://hub.docker.com/v2/repositories/library/python/tags?page_size=100&name=${minor}." \
+          latest=$(curl -s "https://hub.docker.com/v2/repositories/library/python/tags?page_size=100&ordering=-last_updated&name=${minor}." \
             | jq -r '.results[].name' \
             | grep -E "^${minor}\.[0-9]+-slim-trixie$" \
             | sed 's/-slim-trixie$//' \

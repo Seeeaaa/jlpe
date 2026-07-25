@@ -2,7 +2,7 @@ name: Check intermediate dependencies
 
 on:
   schedule:
-    - cron: "0 5 * * *"  # daily, before check-python-version/check-uv-version at 06:00
+    - cron: "0 5 * * *"
   workflow_dispatch:
 
 jobs:
