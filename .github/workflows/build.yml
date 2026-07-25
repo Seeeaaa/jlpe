@@ -94,7 +94,7 @@ jobs:
 
   build:
     needs: [changes, stamp-date]
-    if: always()
+    if: always() && (github.event_name != 'push' || needs.changes.outputs.image == 'true')
     runs-on: ubuntu-latest
     outputs:
       python_version: ${{ steps.pyver.outputs.version }}
