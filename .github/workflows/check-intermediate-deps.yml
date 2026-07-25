@@ -48,7 +48,7 @@ jobs:
           title: "build(deps): upgrade transitive dependencies in uv.lock"
           body: |
             Automated `uv lock --upgrade` run. Only transitive/indirect
-            dependency versions are affected — top-level pins in
+            dependency versions are affected, top-level pins in
             `pyproject.toml` are unchanged.
           branch: upgrade-intermediate-deps
           labels: dependencies
