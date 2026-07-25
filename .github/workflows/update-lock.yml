@@ -30,7 +30,7 @@ jobs:
       - name: Extract uv version from Dockerfile
         id: uvver
         run: |
-          version=$(grep -oP '(?<=ARG UV_VERSION=)\S+' Dockerfile)
+          version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)\S+' Dockerfile)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Install uv
