@@ -34,12 +34,65 @@ jobs:
               - 'pyproject.toml'
               - 'uv.lock'
 
+  stamp-date:
+    needs: changes
+    if: github.event_name == 'push' && needs.changes.outputs.image == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.PAT_FOR_BOTS }}
+
+      - name: Compute and apply new version date
+        id: bump
+        run: |
+          python_version_full=$(grep -oP '(?<=ARG PYTHON_VERSION=)\S+' Dockerfile)
+          prefix="${python_version_full/-/+}"
+          new_version="${prefix}.$(date -u +%Y%m%d)"
+          current_version=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml)
+
+          if [ "$current_version" = "$new_version" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            sed -i "s/^version = \".*\"/version = \"${new_version}\"/" pyproject.toml
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          git commit -m "chore: bump image version date [skip ci]"
+          git push
+
+      - name: Resolve final SHA
+        id: resolve
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: [changes, stamp-date]
+    if: always()
     runs-on: ubuntu-latest
     outputs:
       python_version: ${{ steps.pyver.outputs.version }}
     steps:
+      - name: Resolve ref to build
+        id: ref
+        run: |
+          if [ -n "${{ needs.stamp-date.outputs.sha }}" ]; then
+            echo "sha=${{ needs.stamp-date.outputs.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.ref.outputs.sha }}
 
       - name: Extract Python version
         id: pyver
