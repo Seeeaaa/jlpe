@@ -33,7 +33,13 @@ jobs:
               - 'Dockerfile'
               - 'pyproject.toml'
               - 'uv.lock'
-
+  # This is the only job in the pipeline that pushes directly to main
+  # instead of going through a PR. This is intentional: it lets version
+  # stamping, build, smoke-test, and publish happen atomically in one
+  # workflow run, without waiting on a separate PR to be merged.
+  # Relies on the PAT_FOR_BOTS account being exempt from branch protection
+  # (verify under Settings -> Branches if this job ever starts failing
+  # with a permission error).
   stamp-date:
     needs: changes
     if: github.event_name == 'push' && needs.changes.outputs.image == 'true'
@@ -92,13 +98,18 @@ jobs:
         id: resolve
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-  build:
+    build:
     needs: [changes, stamp-date]
-    if: always() && (github.event_name != 'push' || needs.changes.outputs.image == 'true')
+    if: |
+      always() &&
+      needs.stamp-date.result != 'failure' &&
+      needs.stamp-date.result != 'cancelled' &&
+      (github.event_name != 'push' || needs.changes.outputs.image == 'true')
     runs-on: ubuntu-latest
     outputs:
       python_version: ${{ steps.pyver.outputs.version }}
-      build_sha: ${{ steps.ref.outputs.sha }}
+      full_version: ${{ steps.fullver.outputs.tag }}
+      sha: ${{ steps.ref.outputs.sha }}
     steps:
       - name: Resolve ref to build
         id: ref
@@ -119,6 +130,12 @@ jobs:
           version=$(grep -oP '(?<=^FROM python:)[0-9.]+' Dockerfile)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      - name: Extract full version from pyproject.toml
+        id: fullver
+        run: |
+          version=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml)
+          echo "tag=${version//+/-}" >> "$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -129,12 +146,13 @@ jobs:
           load: true
           no-cache: true
           tags: |
-            vyxan/jlpe_image:latest
-            vyxan/jlpe_image:${{ steps.pyver.outputs.version }}
             vyxan/jlpe_image:${{ steps.ref.outputs.sha }}
+            vyxan/jlpe_image:${{ steps.fullver.outputs.tag }}
+            vyxan/jlpe_image:${{ steps.pyver.outputs.version }}
+            vyxan/jlpe_image:latest
 
       - name: Save image to tar
-        run: docker save vyxan/jlpe_image:latest vyxan/jlpe_image:${{ steps.pyver.outputs.version }} vyxan/jlpe_image:${{ steps.ref.outputs.sha }} -o jlpe-image.tar
+        run: docker save vyxan/jlpe_image:latest vyxan/jlpe_image:${{ steps.pyver.outputs.version }} vyxan/jlpe_image:${{ steps.fullver.outputs.tag }} vyxan/jlpe_image:${{ steps.ref.outputs.sha }} -o jlpe-image.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v7
@@ -149,7 +167,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.build.outputs.build_sha }}
+          ref: ${{ needs.build.outputs.sha }}
 
       - name: Download image artifact
         uses: actions/download-artifact@v8
@@ -378,7 +396,8 @@ jobs:
 
       - name: Push image
         run: |
-          docker push vyxan/jlpe_image:latest
+          docker push vyxan/jlpe_image:${{ needs.build.outputs.sha }}
+          docker push vyxan/jlpe_image:${{ needs.build.outputs.full_version }}
           docker push vyxan/jlpe_image:${{ needs.build.outputs.python_version }}
-          docker push vyxan/jlpe_image:${{ needs.build.outputs.build_sha }}
+          docker push vyxan/jlpe_image:latest
           
