@@ -1,8 +1,5 @@
-ARG UV_VERSION=0.11.32
-ARG PYTHON_VERSION=3.13.14-slim-trixie
-
-FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
-FROM python:${PYTHON_VERSION}
+FROM ghcr.io/astral-sh/uv:0.11.31 AS uv
+FROM python:3.13.14-slim-trixie
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
