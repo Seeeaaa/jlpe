@@ -18,7 +18,7 @@ jobs:
       - name: Get current python version from Dockerfile
         id: current
         run: |
-          version=$(grep -oP '(?<=ARG PYTHON_VERSION=)[0-9.]+(?=-slim-trixie)' Dockerfile)
+          version=$(grep -oP '(?<=^FROM python:)[0-9.]+' Dockerfile)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Get latest matching tag from Docker Hub
@@ -44,7 +44,7 @@ jobs:
       - name: Update Dockerfile
         if: steps.compare.outputs.up_to_date == 'false'
         run: |
-          sed -i "s/ARG PYTHON_VERSION=${{ steps.current.outputs.version }}-slim-trixie/ARG PYTHON_VERSION=${{ steps.latest.outputs.version }}-slim-trixie/" Dockerfile
+          sed -i "s/FROM python:${{ steps.current.outputs.version }}-slim-trixie/FROM python:${{ steps.latest.outputs.version }}-slim-trixie/" Dockerfile
 
       - name: Create pull request
         if: steps.compare.outputs.up_to_date == 'false'
