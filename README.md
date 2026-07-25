@@ -13,7 +13,6 @@ I try to update the image whenever a new library version or a new Python patch v
 - Each Docker tag corresponds to a specific JLPE version.
 - The repository contains a `Dockerfile`, a `pyproject.toml`, and a `uv.lock`. Top-level dependency versions are pinned in `pyproject.toml`; `uv.lock` records the exact resolved versions of every dependency, including transitive ones, so the same `pyproject.toml` always produces the same environment.
 
-
 ### Supported tags
 |Tag|Python|Package manager|Description|
 |-|-|-|-|

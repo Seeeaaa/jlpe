@@ -16,7 +16,7 @@ jobs:
       - name: Extract Python version
         id: pyver
         run: |
-          version=$(grep -oP '(?<=ARG PYTHON_VERSION=)[0-9.]+' Dockerfile)
+          version=$(grep -oP '(?<=^FROM python:)[0-9.]+' Dockerfile)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Install uv
