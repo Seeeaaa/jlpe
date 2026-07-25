@@ -8,9 +8,9 @@ I created this Docker image to provide a consistent, fully configured JupyterLab
 - **Libraries:** data manipulation, visualization, and machine learning
 
 ### Versioning
-- The version format is `{python_version}+{image_variant}.{build_date}` — for example, `3.13.14+slim-trixie.20260623` means Python 3.13.14, built on the `slim-trixie` Debian image, released on 2026-06-23.
+- The version format is `{python_version}+{image_variant}.{build_date}`, for example, `3.13.14+slim-trixie.20260623` means Python 3.13.14, built on the `slim-trixie` Debian image.
 - Each Docker tag corresponds to a specific JLPE version.
-- The repository contains a single `Dockerfile` and a `pyproject.toml`.
+- The repository contains a `Dockerfile`, a `pyproject.toml`, and a `uv.lock`. Top-level dependency versions are pinned in `pyproject.toml`; `uv.lock` records the exact resolved versions of every dependency, including transitive ones, so the same `pyproject.toml` always produces the same environment.
 I try to update the image whenever a new library version or a new Python patch version is released. When a new library version conflicts with existing dependencies, I resolve the issue on a case-by-case basis. For example, when migrating to pandas 3.0, shap and mlflow were excluded due to compatibility issues and may be re-added once resolved.
 
 ### Supported tags
