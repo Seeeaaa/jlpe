@@ -20,20 +20,24 @@ jobs:
       - name: Get current python version from Dockerfile
         id: current
         run: |
-          version=$(grep -oP '(?<=^FROM python:)[0-9.]+' Dockerfile)
+          full=$(grep -oP '(?<=^FROM python:)\S+' Dockerfile)
+          version=$(echo "$full" | grep -oP '^[0-9.]+')
+          suffix=$(echo "$full" | sed -E 's/^[0-9.]+-//')
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
 
       - name: Get latest matching tag from Docker Hub
         id: latest
         run: |
           minor=$(echo "${{ steps.current.outputs.version }}" | cut -d. -f1,2)
+          suffix="${{ steps.current.outputs.suffix }}"
           latest=$(curl -sf "https://raw.githubusercontent.com/docker-library/official-images/master/library/python" \
             | grep "^Tags: " \
-            | grep -oE "${minor}\.[0-9]+-slim-trixie" \
-            | sed 's/-slim-trixie$//' \
+            | grep -oE "${minor}\.[0-9]+-${suffix}" \
+            | sed "s/-${suffix}\$//" \
             | sort -V | tail -1) || true
           if [ -z "$latest" ]; then
-            echo "::error::No matching python:${minor}.x-slim-trixie tag found in docker-library/official-images"
+            echo "::error::No matching python:${minor}.x-${suffix} tag found in docker-library/official-images"
             exit 1
           fi
           echo "version=$latest" >> "$GITHUB_OUTPUT"
@@ -50,7 +54,7 @@ jobs:
       - name: Update Dockerfile
         if: steps.compare.outputs.up_to_date == 'false'
         run: |
-          sed -i "s/FROM python:${{ steps.current.outputs.version }}-slim-trixie/FROM python:${{ steps.latest.outputs.version }}-slim-trixie/" Dockerfile
+          sed -i "s/FROM python:${{ steps.current.outputs.version }}-${{ steps.current.outputs.suffix }}/FROM python:${{ steps.latest.outputs.version }}-${{ steps.current.outputs.suffix }}/" Dockerfile
 
       - name: Create pull request
         if: steps.compare.outputs.up_to_date == 'false'
@@ -60,7 +64,7 @@ jobs:
           commit-message: "build(deps): bump python from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}"
           title: "build(deps): bump python from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}"
           body: |
-            Bumps python from `${{ steps.current.outputs.version }}` to `${{ steps.latest.outputs.version }}` (slim-trixie) in the Dockerfile.
+            Bumps Python from `${{ steps.current.outputs.version }}` to `${{ steps.latest.outputs.version }}` in the Dockerfile.
           branch: bump-python-version
           labels: dependencies,docker
           delete-branch: true
