@@ -98,7 +98,7 @@ jobs:
         id: resolve
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-    build:
+  build:
     needs: [changes, stamp-date]
     if: |
       always() &&
