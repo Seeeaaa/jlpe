@@ -27,13 +27,13 @@ jobs:
         id: latest
         run: |
           minor=$(echo "${{ steps.current.outputs.version }}" | cut -d. -f1,2)
-          latest=$(curl -sf "https://hub.docker.com/v2/repositories/library/python/tags?page_size=1000&ordering=-last_updated&name=${minor}." \
-            | jq -r '.results[].name' \
-            | grep -E "^${minor}\.[0-9]+-slim-trixie$" \
+          latest=$(curl -sf "https://raw.githubusercontent.com/docker-library/official-images/master/library/python" \
+            | grep "^Tags: " \
+            | grep -oE "${minor}\.[0-9]+-slim-trixie" \
             | sed 's/-slim-trixie$//' \
-            | sort -V | tail -1)
+            | sort -V | tail -1) || true
           if [ -z "$latest" ]; then
-            echo "::error::No matching python:${minor}.x-slim-trixie tag found on Docker Hub"
+            echo "::error::No matching python:${minor}.x-slim-trixie tag found in docker-library/official-images"
             exit 1
           fi
           echo "version=$latest" >> "$GITHUB_OUTPUT"
