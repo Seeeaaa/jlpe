@@ -1,5 +1,5 @@
 FROM ghcr.io/astral-sh/uv:0.11.32 AS uv
-FROM python:3.13.14-slim-trixie
+FROM python:-slim-trixie
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
