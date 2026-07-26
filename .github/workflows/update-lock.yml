@@ -10,6 +10,9 @@ on:
       - main
     paths:
       - "pyproject.toml"
+  pull_request:
+    paths:
+      - ".github/workflows/update-lock.yml"
   workflow_dispatch:
 
 permissions:
@@ -42,6 +45,7 @@ jobs:
         run: uv lock
 
       - name: Commit uv.lock if changed
+        if: github.event_name != 'pull_request'
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: regenerate uv.lock"

@@ -3,6 +3,9 @@ name: Update PR branches
 on:
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - ".github/workflows/update-pr-branches.yml"
 
 jobs:
   update-branches:
@@ -16,14 +19,18 @@ jobs:
         with:
           github-token: ${{ secrets.PAT_FOR_BOTS }}
           script: |
+            const isTestRun = context.eventName === "pull_request";
             const prs = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: "open",
               base: "main",
             });
-
             for (const pr of prs.data) {
+              if (isTestRun) {
+                console.log(`[test run] would update PR #${pr.number}`);
+                continue;
+              }
               try {
                 await github.rest.pulls.updateBranch({
                   owner: context.repo.owner,

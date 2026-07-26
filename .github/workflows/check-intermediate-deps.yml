@@ -1,6 +1,13 @@
 name: Check intermediate dependencies
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "pyproject.toml"
+  pull_request:
+    paths:
+      - ".github/workflows/check-intermediate-deps.yml"
   schedule:
     - cron: "0 5 * * *"
   workflow_dispatch:
@@ -36,7 +43,7 @@ jobs:
           fi
 
       - name: Create pull request
-        if: steps.diff.outputs.changed == 'true'
+        if: steps.diff.outputs.changed == 'true' && github.event_name != 'pull_request'
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}

@@ -7,6 +7,9 @@ on:
     branches: [main]
     paths:
       - "Dockerfile"
+  pull_request:
+    paths:
+      - ".github/workflows/check-python-version.yml"
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
@@ -57,7 +60,7 @@ jobs:
           sed -i "s/FROM python:${{ steps.current.outputs.version }}-${{ steps.current.outputs.suffix }}/FROM python:${{ steps.latest.outputs.version }}-${{ steps.current.outputs.suffix }}/" Dockerfile
 
       - name: Create pull request
-        if: steps.compare.outputs.up_to_date == 'false'
+        if: steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}
