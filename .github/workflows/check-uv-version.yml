@@ -1,5 +1,7 @@
 name: Check uv version
-
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
 on:
   push:
     branches: [main]
@@ -24,9 +26,13 @@ jobs:
       - name: Get latest uv release
         id: latest
         run: |
-          latest=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          latest=$(curl -sf -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             https://api.github.com/repos/astral-sh/uv/releases/latest \
             | jq -r .tag_name | sed 's/^v//')
+          if [ -z "$latest" ]; then
+            echo "::error::Failed to resolve latest uv version from GitHub API"
+            exit 1
+          fi
           echo "version=$latest" >> "$GITHUB_OUTPUT"
 
       - name: Compare versions
