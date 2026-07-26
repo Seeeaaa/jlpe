@@ -74,6 +74,14 @@ jobs:
           version: ${{ steps.uvver.outputs.version }}
 
       - name: Sync uv.lock
+        # Required, not just tidiness: uv's --locked check treats any change
+        # to `version` in pyproject.toml as making uv.lock stale, even though
+        # `version` has no effect on dependency resolution (confirmed
+        # empirically -- bumping only the version string and running
+        # `uv sync --locked` fails with "lockfile needs to be updated").
+        # Without this step, `RUN uv sync --locked ...` in the Dockerfile
+        # would fail on every date-stamp bump, even with zero dependency
+        # changes.
         run: uv lock
 
       - name: Check if anything actually changed
