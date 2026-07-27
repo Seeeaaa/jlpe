@@ -196,7 +196,8 @@ jobs:
           echo "uv version: OK ($actual)"
 
       - name: Start container
-        run: docker run -d --name test_container vyxan/jlpe_image:latest -c "sleep infinity"
+        # run: docker run -d --name test_container vyxan/jlpe_image:latest -c "sleep infinity"
+        run: docker run -d --init --name test_container vyxan/jlpe_image:latest -c "sleep infinity"
 
       - name: Smoke test - data stack
         run: |
