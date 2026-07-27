@@ -25,10 +25,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # PAT is required instead of the default GITHUB_TOKEN so that the
-          # resulting push is treated as a "real" push and re-triggers
-          # build.yml (pull_request/synchronize) on this branch.
-          token: ${{ secrets.PAT_FOR_BOTS }}
+          # On a real push, PAT is required instead of the default GITHUB_TOKEN
+          # so that the resulting push is treated as a "real" push and
+          # re-triggers build.yml (pull_request/synchronize) on this branch.
+          # On a pull_request run (this workflow file itself changed, e.g. a
+          # Dependabot action-version bump), the commit step below is skipped
+          # via `if:`, so this is read-only verification only -- the default
+          # GITHUB_TOKEN is enough and doesn't depend on PAT_FOR_BOTS being
+          # available under Dependabot secrets for this event type specifically.
+          token: ${{ github.event_name == 'pull_request' && secrets.GITHUB_TOKEN || secrets.PAT_FOR_BOTS }}
 
       - name: Extract uv version from Dockerfile
         id: uvver
