@@ -17,7 +17,7 @@ jobs:
       - name: Update open PR branches to latest main
         uses: actions/github-script@v9
         with:
-          github-token: ${{ secrets.PAT_FOR_BOTS }}
+          github-token: ${{ github.event_name == 'pull_request' && secrets.GITHUB_TOKEN || secrets.PAT_FOR_BOTS }}
           script: |
             const isTestRun = context.eventName === "pull_request";
             const prs = await github.rest.pulls.list({
