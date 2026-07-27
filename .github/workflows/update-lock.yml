@@ -1,9 +1,7 @@
 name: Update uv.lock
-
 concurrency:
   group: update-lock-${{ github.ref }}
   cancel-in-progress: true
-
 on:
   push:
     branches-ignore:
@@ -14,7 +12,6 @@ on:
     paths:
       - ".github/workflows/update-lock.yml"
   workflow_dispatch:
-
 permissions:
   contents: write
 
