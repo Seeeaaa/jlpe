@@ -1,5 +1,4 @@
 name: Update PR branches
-
 on:
   push:
     branches: [main]

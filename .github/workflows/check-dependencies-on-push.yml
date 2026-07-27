@@ -1,5 +1,4 @@
 name: Check dependency freshness
-
 on:
   push:
     branches: [main]
