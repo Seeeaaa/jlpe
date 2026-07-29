@@ -1,6 +1,6 @@
 [project]
 name = "jlpe"
-version = "3.13.14+slim-trixie.20260727"
+version = "3.13.14+slim-trixie.20260728"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = [{ name = "Seeeaaa" }]
 readme = "README.md"
@@ -57,7 +57,7 @@ jupyterlab = [
     "ipywidgets==8.1.8",
     "nb-clean==4.0.1",
     "jupyter-ruff==0.3.1",
-    "tqdm==4.69.1",
+    "tqdm==4.70.0",
 ]
 
 theme = [
