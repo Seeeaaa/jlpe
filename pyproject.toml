@@ -4,7 +4,7 @@ version = "3.13.14+slim-trixie.20260731"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = [{ name = "Seeeaaa" }]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 
 # Pinned top-level versions live here; exact resolved versions
 # (including transitive dependencies) are tracked in uv.lock,
