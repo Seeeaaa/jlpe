@@ -7,7 +7,11 @@ on:
     branches-ignore:
       - main
     paths:
+      # Both files affect what `uv lock` resolves to: pyproject.toml changes
+      # the constraints, Dockerfile changes the uv itself (a new uv version
+      # can produce a different lock, or fail outright).
       - "pyproject.toml"
+      - "Dockerfile"
   pull_request:
     paths:
       - ".github/workflows/update-lock.yml"
