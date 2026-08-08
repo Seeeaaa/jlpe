@@ -337,11 +337,10 @@ jobs:
           EOF
 
       - name: Smoke test - JupyterLab starts and kernel is registered
-        # run: |
-        #   docker exec -d test_container jupyter lab \
-        #     --allow-root --no-browser --ip=0.0.0.0 --port=8888 \
-        #     --IdentityProvider.token=""
-        run: docker exec -d test_container bash -c "jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888 --IdentityProvider.token='' > /tmp/jupyter.log 2>&1"
+        run: |
+          # `docker exec -d` output is not captured by `docker logs`, so redirect
+          # jupyter's own stdout/stderr into a file we can cat on failure.
+          docker exec -d test_container bash -c "jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888 --IdentityProvider.token='' > /tmp/jupyter.log 2>&1"
 
           echo "Waiting for JupyterLab to respond..."
           for i in $(seq 1 20); do
@@ -367,10 +366,6 @@ jobs:
           docker exec test_container jupyter kernelspec list | grep -qi python3 \
             || { echo "No python3 kernel registered"; exit 1; }
           echo "Kernel check: OK"
-
-      - name: Stop container
-        if: always()
-        run: docker stop test_container
 
   push:
     needs: [changes, smoke-test, build]
