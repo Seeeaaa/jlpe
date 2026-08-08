@@ -28,17 +28,22 @@ jobs:
           full=$(grep -oP '(?<=^FROM python:)\S+' Dockerfile)
           version=$(echo "$full" | grep -oP '^[0-9.]+')
           suffix=$(echo "$full" | sed -E 's/^[0-9.]+-//')
+          # Regex-safe form: escape "." so it is not treated as "any character"
+          # when this value is later used inside a sed/grep pattern.
+          version_re="${version//./\\.}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+          echo "version_re=$version_re" >> "$GITHUB_OUTPUT"
 
       - name: Get latest matching tag from Docker Hub
         id: latest
         run: |
           minor=$(echo "${{ steps.current.outputs.version }}" | cut -d. -f1,2)
+          minor_re="${minor//./\\.}"
           suffix="${{ steps.current.outputs.suffix }}"
           latest=$(curl -sf "https://raw.githubusercontent.com/docker-library/official-images/master/library/python" \
             | grep "^Tags: " \
-            | grep -oE "${minor}\.[0-9]+-${suffix}" \
+            | grep -oE "${minor_re}\.[0-9]+-${suffix}" \
             | sed "s/-${suffix}\$//" \
             | sort -V | tail -1) || true
           if [ -z "$latest" ]; then
@@ -59,7 +64,7 @@ jobs:
       - name: Update Dockerfile
         if: steps.compare.outputs.up_to_date == 'false'
         run: |
-          sed -i "s/FROM python:${{ steps.current.outputs.version }}-${{ steps.current.outputs.suffix }}/FROM python:${{ steps.latest.outputs.version }}-${{ steps.current.outputs.suffix }}/" Dockerfile
+          sed -i "s/FROM python:${{ steps.current.outputs.version_re }}-${{ steps.current.outputs.suffix }}/FROM python:${{ steps.latest.outputs.version }}-${{ steps.current.outputs.suffix }}/" Dockerfile
 
       - name: Create pull request
         if: steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
