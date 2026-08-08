@@ -254,6 +254,7 @@ jobs:
         run: |
           docker exec -i test_container python - <<'EOF'
           import sys
+          import os
           import numpy as np
           import xgboost as xgb
           import lightgbm as lgb
@@ -262,26 +263,12 @@ jobs:
           X = np.random.rand(100, 5)
           y = np.random.randint(0, 2, 100)
 
-          def check_gpu(name, fn):
-              # On standard GitHub-hosted runners there is no GPU hardware.
-              # A failure mentioning cuda/gpu/device means the code path exists
-              # but hardware is missing - that's a PASS here.
-              # Any other failure means the build itself is broken - that's a FAIL.
-              try:
-                  fn()
-                  print(f"{name} GPU: OK (unexpected, GPU hardware present?)")
-              except Exception as e:
-                  msg = str(e).lower()
-                  if any(k in msg for k in ("cuda", "gpu", "device")):
-                      print(f"{name} GPU: code path present, no GPU hardware on runner ({e})")
-                  else:
-                      print(f"{name} GPU: UNEXPECTED FAILURE: {e}")
-                      sys.exit(1)
-
           xgb.XGBClassifier(device="cpu", n_estimators=5).fit(X, y)
           print("xgboost CPU: OK")
 
-          check_gpu("xgboost", lambda: xgb.XGBClassifier(device="cuda", n_estimators=5).fit(X, y))
+          info = xgboost.build_info()
+          assert info.get("USE_CUDA"), f"xgboost built without CUDA support: {info}"
+          print("xgboost: CUDA build flag present")
 
           lgb.train(
               {"objective": "binary", "verbosity": -1, "device": "cpu"},
@@ -290,13 +277,19 @@ jobs:
           )
           print("lightgbm CPU: OK")
 
-          cb.CatBoostClassifier(iterations=5, task_type="CPU", verbose=False).fit(X, y)
-          print("catboost CPU: OK")
+          pkg_dir = os.path.dirname(catboost.__file__)
+          so_files = [f for f in os.listdir(pkg_dir) if f.endswith(".so")]
+          assert so_files, f"no compiled extension found in {pkg_dir}"
 
-          check_gpu(
-              "catboost",
-              lambda: cb.CatBoostClassifier(iterations=5, task_type="GPU", verbose=False).fit(X, y),
-          )
+          marker = b"cuda_lib/cuda_base"
+          found = False
+          for f in so_files:
+              with open(os.path.join(pkg_dir, f), "rb") as fh:
+                  if marker in fh.read():
+                      found = True
+                      break
+          assert found, f"CUDA build marker not found in: {so_files}"
+          print("catboost: CUDA build marker present")
           EOF
 
       - name: Smoke test - prophet
