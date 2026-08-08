@@ -336,10 +336,11 @@ jobs:
           EOF
 
       - name: Smoke test - JupyterLab starts and kernel is registered
-        run: |
-          docker exec -d test_container jupyter lab \
-            --allow-root --no-browser --ip=0.0.0.0 --port=8888 \
-            --IdentityProvider.token=""
+        # run: |
+        #   docker exec -d test_container jupyter lab \
+        #     --allow-root --no-browser --ip=0.0.0.0 --port=8888 \
+        #     --IdentityProvider.token=""
+        run: docker exec -d test_container bash -c "jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888 --IdentityProvider.token='' > /tmp/jupyter.log 2>&1"
 
           echo "Waiting for JupyterLab to respond..."
           for i in $(seq 1 20); do
@@ -352,7 +353,10 @@ jobs:
             fi
             if [ "$i" -eq 20 ]; then
               echo "JupyterLab did not respond after 20 attempts"
+              echo "--- docker logs ---"
               docker logs test_container
+              echo "--- jupyter.log ---"
+              docker exec test_container cat /tmp/jupyter.log
               exit 1
             fi
             sleep 1
