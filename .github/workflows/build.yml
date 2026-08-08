@@ -254,7 +254,6 @@ jobs:
       - name: Smoke test - ML libraries (CPU real, GPU code-path only)
         run: |
           docker exec -i test_container python - <<'EOF'
-          import sys
           import os
           import numpy as np
           import xgboost as xgb
@@ -267,7 +266,7 @@ jobs:
           xgb.XGBClassifier(device="cpu", n_estimators=5).fit(X, y)
           print("xgboost CPU: OK")
 
-          info = xgboost.build_info()
+          info = xgb.build_info()
           assert info.get("USE_CUDA"), f"xgboost built without CUDA support: {info}"
           print("xgboost: CUDA build flag present")
 
@@ -278,7 +277,7 @@ jobs:
           )
           print("lightgbm CPU: OK")
 
-          pkg_dir = os.path.dirname(catboost.__file__)
+          pkg_dir = os.path.dirname(cb.__file__)
           so_files = [f for f in os.listdir(pkg_dir) if f.endswith(".so")]
           assert so_files, f"no compiled extension found in {pkg_dir}"
 
