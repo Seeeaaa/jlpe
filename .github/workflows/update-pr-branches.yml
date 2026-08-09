@@ -12,6 +12,9 @@ permissions:
 jobs:
   update-branches:
     runs-on: ubuntu-latest
+    # permissions:
+    #   pull-requests: write
+    #   contents: write
     steps:
       - name: Update open PR branches to latest main
         uses: actions/github-script@v9
@@ -26,21 +29,20 @@ jobs:
               base: "main",
             });
             for (const pr of prs.data) {
-              // Dependabot rebases its own branches on conflicts; an extra merge commit
-              // from updateBranch makes Dependabot stop doing that for this PR.
-              if (pr.user.login === "dependabot[bot]") {
-                console.log(`Skipped PR #${pr.number}: authored by dependabot[bot]`);
-                continue;
-              }
               if (isTestRun) {
                 console.log(`[test run] would update PR #${pr.number}`);
                 continue;
               }
               try {
-                await github.rest.pulls.updateBranch({
+                await github.rest.repos.merge({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  pull_number: pr.number,
+                  base: pr.head.ref,
+                  head: "main",
+                  // The magic string keeps Dependabot able to rebase/force-push this
+                  // branch itself later -- without it, this merge commit would count
+                  // as a foreign edit and Dependabot would give up on the PR.
+                  commit_message: "chore: merge main into PR branch [dependabot skip]",
                 });
                 console.log(`Updated PR #${pr.number}`);
               } catch (e) {
