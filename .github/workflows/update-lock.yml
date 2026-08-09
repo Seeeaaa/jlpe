@@ -6,14 +6,10 @@ on:
   push:
     branches-ignore:
       - main
-    # paths:
-    #   # Both files affect what `uv lock` resolves to: pyproject.toml changes
-    #   # the constraints, Dockerfile changes the uv itself (a new uv version
-    #   # can produce a different lock, or fail outright).
-    #   - "pyproject.toml"
-    #   - "Dockerfile"
-    paths:
-      - ".github/workflows/update-lock.yml"
+    # No paths filter here on purpose: this is a required status check, so it
+    # has to report on every push regardless of which files changed --
+    # otherwise PRs get stuck on "Expected -- waiting for status to be
+    # reported" for branches whose push doesn't match the filter.
   pull_request:
     paths:
       - ".github/workflows/update-lock.yml"
