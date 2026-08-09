@@ -12,9 +12,6 @@ permissions:
 jobs:
   update-branches:
     runs-on: ubuntu-latest
-    # permissions:
-    #   pull-requests: write
-    #   contents: write
     steps:
       - name: Update open PR branches to latest main
         uses: actions/github-script@v9
