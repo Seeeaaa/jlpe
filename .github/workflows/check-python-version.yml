@@ -11,7 +11,7 @@ on:
     paths:
       - ".github/workflows/check-python-version.yml"
   schedule:
-    - cron: "0 22 * * *"  # every day, 22:00 UTC
+    - cron: "0 21 * * *"  # every day, 21:00 UTC
   workflow_dispatch:
 permissions:
   contents: read
