@@ -13,6 +13,11 @@ requires-python = ">=3.13,<3.14"
 # even though it doesn't touch dependencies (CI does this automatically).
 [tool.uv]
 package = false
+# Project only ever runs inside the Linux-based Docker image,
+# so there is no need to resolve dependencies for Windows.
+environments = [
+    "sys_platform == 'linux'",
+]
 
 [dependency-groups]
 ml = [
