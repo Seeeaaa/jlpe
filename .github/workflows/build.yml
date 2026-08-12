@@ -18,7 +18,13 @@ permissions:
 jobs:
   changes:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    # if: github.event_name == 'push'
+    # outputs:
+    #   image: ${{ steps.filter.outputs.image }}
+    # [skip build] marks a commit made by stamp-date itself: without this
+    # check, that commit's own push would re-trigger the whole pipeline for
+    # content that was already built and pushed in the run that made it.
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip build]')
     outputs:
       image: ${{ steps.filter.outputs.image }}
     steps:
