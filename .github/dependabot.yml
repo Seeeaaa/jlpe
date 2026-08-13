@@ -4,12 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-      cooldown:
-        default-days: 0
+    cooldown:
+      default-days: 0
 
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "daily"
-      cooldown:
-        default-days: 0
+    cooldown:
+      default-days: 0
