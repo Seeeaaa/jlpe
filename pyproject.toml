@@ -56,7 +56,7 @@ visualization = [
 ]
 
 jupyterlab = [
-    "jupyterlab==4.6.2",
+    "jupyterlab==4.6.3",
     "jupyterlab-execute-time==3.3.0",
     "jupyter-resource-usage==1.2.1",
     "ipywidgets==8.1.8",
