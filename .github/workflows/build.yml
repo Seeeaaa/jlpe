@@ -11,7 +11,7 @@ on:
     inputs:
       force_push:
         type: boolean
-        default: falsegit
+        default: false
 permissions:
   contents: read
 
