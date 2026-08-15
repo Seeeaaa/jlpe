@@ -41,7 +41,7 @@ data = [
     "dask[complete]==2026.7.1",
     "duckdb==1.5.5",
     "pyarrow==25.0.1",
-    "sqlalchemy==2.0.51",
+    "sqlalchemy==2.0.52",
     "psycopg[binary,pool]==3.3.4",
 ]
 
