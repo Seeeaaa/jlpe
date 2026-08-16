@@ -62,7 +62,7 @@ jobs:
         run: |
           python_version_full=$(grep -oP '(?<=^FROM python:)\S+' Dockerfile)
           prefix="${python_version_full/-/+}"
-          new_version="${prefix}.$(date -u +%Y%m%d)"
+          new_version="${prefix}.$(date -u +%Y%m%d%H%M)"
           current_version=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml)
           if [ "$current_version" != "$new_version" ]; then
             sed -i "s/^version = \".*\"/version = \"${new_version}\"/" pyproject.toml
