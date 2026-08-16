@@ -75,9 +75,9 @@ jobs:
         run: |
           test_path="${{ matrix.smoke_test }}"
           if [ -n "$test_path" ] && [ -f "$test_path" ]; then
-            uv run --all-groups python "$test_path"
+            uv run --all-groups python -P "$test_path"
           else
-            uv run --all-groups python -c "import ${{ matrix.name }}"
+            uv run --all-groups python -P -c "import ${{ matrix.name }}"
           fi
 
       - name: Create pull request
