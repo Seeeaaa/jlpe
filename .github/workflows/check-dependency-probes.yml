@@ -1,0 +1,117 @@
+name: Check dependency compatibility probes
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # weekly, Monday 06:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Run a single candidate by name (empty = all candidates)"
+        required: false
+        type: string
+permissions:
+  contents: read
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build matrix from candidates.json
+        id: set
+        run: |
+          only="${{ github.event.inputs.only }}"
+          if [ -n "$only" ]; then
+            matrix=$(jq -c --arg only "$only" '[.[] | select(.name == $only)]' .github/dep-probes/candidates.json)
+          else
+            matrix=$(jq -c . .github/dep-probes/candidates.json)
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  probe:
+    needs: generate-matrix
+    # A matrix with zero entries is a hard error in GitHub Actions, so this
+    # guards the case where `only` doesn't match any candidate name.
+    if: needs.generate-matrix.outputs.matrix != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract uv version from Dockerfile
+        id: uvver
+        run: |
+          version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)\S+' Dockerfile)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: ${{ steps.uvver.outputs.version }}
+
+      - name: Sync base environment (sanity check)
+        run: uv sync --locked --all-groups
+
+      - name: Try adding ${{ matrix.name }}
+        id: add
+        continue-on-error: true
+        run: |
+          spec="${{ matrix.name }}${{ matrix.version }}"
+          uv add --group "${{ matrix.group }}" "$spec"
+
+      - name: Run smoke test for ${{ matrix.name }}
+        if: steps.add.outcome == 'success'
+        id: smoke
+        continue-on-error: true
+        run: |
+          test_path="${{ matrix.smoke_test }}"
+          if [ -n "$test_path" ] && [ -f "$test_path" ]; then
+            uv run --all-groups python "$test_path"
+          else
+            uv run --all-groups python -c "import ${{ matrix.name }}"
+          fi
+
+      - name: Create pull request
+        if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.PAT_FOR_BOTS }}
+          add-paths: |
+            pyproject.toml
+            uv.lock
+          commit-message: "feat(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
+          title: "feat(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
+          body: |
+            Automated compatibility probe for `${{ matrix.name }}` succeeded: dependency
+            resolution and the smoke test both passed against the currently pinned stack.
+            Review the resolved version in pyproject.toml/uv.lock before merging.
+          branch: enable-dep-${{ matrix.name }}
+          labels: dependencies,compatibility-probe
+          delete-branch: true
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ${{ matrix.name }}"
+            if [ "${{ steps.add.outcome }}" != "success" ]; then
+              echo "resolution failed - still incompatible"
+            elif [ "${{ steps.smoke.outcome }}" != "success" ]; then
+              echo "resolution OK, smoke test failed"
+            else
+              echo "compatible - PR opened (enable-dep-${{ matrix.name }})"
+            fi
+            note="${{ matrix.note }}"
+            if [ -n "$note" ]; then
+              echo "note: $note"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,14 @@
+[
+  {
+    "name": "shap",
+    "group": "ml",
+    "smoke_test": ".github/dep-probes/tests/shap.py",
+    "note": "excluded: conflicts with pinned numpy/scikit-learn range as of 2026-08"
+  },
+  {
+    "name": "mlflow",
+    "group": "ml",
+    "smoke_test": ".github/dep-probes/tests/mlflow.py",
+    "note": "excluded: pyarrow/protobuf upper bounds incompatible with current pins"
+  }
+]
