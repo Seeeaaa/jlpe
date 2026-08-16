@@ -26,8 +26,7 @@ jobs:
           python-version: ${{ steps.pyver.outputs.version }}
 
       - name: Sync environment
-        run: uv sync --all-groups --python ${{ steps.pyver.outputs.version }}
-
+        run: uv sync --all-groups --locked --python ${{ steps.pyver.outputs.version }}
       - name: Check outdated packages
         run: |
           outdated=$(uv pip list --outdated)
