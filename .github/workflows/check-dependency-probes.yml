@@ -68,6 +68,23 @@ jobs:
           spec="${{ matrix.name }}${{ matrix.version }}"
           uv add --group "${{ matrix.group }}" "$spec"
 
+      - name: Pin exact resolved version
+        if: steps.add.outcome == 'success'
+        run: |
+          exact=$(uv run python -c "
+          import tomllib
+          with open('uv.lock', 'rb') as f:
+              lock = tomllib.load(f)
+          for pkg in lock['package']:
+              if pkg['name'] == '${{ matrix.name }}':
+                  print(pkg['version'])
+                  break
+          else:
+              raise SystemExit('${{ matrix.name }} not found in uv.lock')
+          ")
+          sed -i -E "s/\"${{ matrix.name }}[<>=!~ ][^\"]*\"/\"${{ matrix.name }}==${exact}\"/" pyproject.toml
+          uv lock
+
       - name: Run smoke test for ${{ matrix.name }}
         if: steps.add.outcome == 'success'
         id: smoke
