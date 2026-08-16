@@ -25,15 +25,23 @@ jobs:
       - name: Get current python version from Dockerfile
         id: current
         run: |
-          full=$(grep -oP '(?<=^FROM python:)\S+' Dockerfile)
+          line=$(grep '^FROM python:' Dockerfile)
+          full=$(echo "$line" | grep -oP '(?<=^FROM python:)[^@\s]+')
+          digest=""
+          if [[ "$line" == *"@"* ]]; then
+            digest="${line#*@}"
+            digest="${digest%% *}"
+          fi
           version=$(echo "$full" | grep -oP '^[0-9.]+')
           suffix=$(echo "$full" | sed -E 's/^[0-9.]+-//')
-          # Regex-safe form: escape "." so it is not treated as "any character"
-          # when this value is later used inside a sed/grep pattern.
           version_re="${version//./\\.}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
           echo "version_re=$version_re" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.5
 
       - name: Get latest matching tag from Docker Hub
         id: latest
@@ -52,29 +60,42 @@ jobs:
           fi
           echo "version=$latest" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve digest of latest tag
+        id: latest_digest
+        run: |
+          digest=$(crane digest python:${{ steps.latest.outputs.version }}-${{ steps.current.outputs.suffix }})
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
       - name: Compare versions
         id: compare
         run: |
-          if [ "${{ steps.current.outputs.version }}" = "${{ steps.latest.outputs.version }}" ]; then
+          if [ "${{ steps.current.outputs.digest }}" = "${{ steps.latest_digest.outputs.digest }}" ]; then
             echo "up_to_date=true" >> "$GITHUB_OUTPUT"
           else
             echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "${{ steps.current.outputs.version }}" = "${{ steps.latest.outputs.version }}" ]; then
+            echo "pr_title=build(deps): refresh pinned digest for python:${{ steps.current.outputs.version }}-${{ steps.current.outputs.suffix }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "pr_title=build(deps): bump python from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Update Dockerfile
         if: steps.compare.outputs.up_to_date == 'false'
         run: |
-          sed -i "s/FROM python:${{ steps.current.outputs.version_re }}-${{ steps.current.outputs.suffix }}/FROM python:${{ steps.latest.outputs.version }}-${{ steps.current.outputs.suffix }}/" Dockerfile
+          sed -i -E "s|^FROM python:${{ steps.current.outputs.version_re }}-${{ steps.current.outputs.suffix }}(@sha256:[0-9a-f]+)?|FROM python:${{ steps.latest.outputs.version }}-${{ steps.current.outputs.suffix }}@${{ steps.latest_digest.outputs.digest }}|" Dockerfile
 
       - name: Create pull request
         if: steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}
-          commit-message: "build(deps): bump python from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}"
-          title: "build(deps): bump python from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}"
+          commit-message: "${{ steps.compare.outputs.pr_title }}"
+          title: "${{ steps.compare.outputs.pr_title }}"
           body: |
-            Bumps Python from `${{ steps.current.outputs.version }}` to `${{ steps.latest.outputs.version }}` in the Dockerfile.
+            ${{ steps.compare.outputs.pr_title }}.
+
+            New digest: `${{ steps.latest_digest.outputs.digest }}`
           branch: bump-python-version
           labels: dependencies,docker
           delete-branch: true

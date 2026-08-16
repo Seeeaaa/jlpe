@@ -60,7 +60,7 @@ jobs:
 
       - name: Compute new version date
         run: |
-          python_version_full=$(grep -oP '(?<=^FROM python:)\S+' Dockerfile)
+          python_version_full=$(grep -oP '(?<=^FROM python:)[^@\s]+' Dockerfile)
           prefix="${python_version_full/-/+}"
           new_version="${prefix}.$(date -u +%Y%m%d%H%M)"
           current_version=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml)
@@ -71,7 +71,7 @@ jobs:
       - name: Extract uv version from Dockerfile
         id: uvver
         run: |
-          version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)\S+' Dockerfile)
+          version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+' Dockerfile)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Install uv
@@ -194,7 +194,7 @@ jobs:
 
       - name: Verify uv version
         run: |
-          expected=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)\S+' Dockerfile)
+          expected=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+' Dockerfile)
           actual=$(docker run --rm --entrypoint uv vyxan/jlpe_image:latest --version | awk '{print $2}')
           if [ "$actual" != "$expected" ]; then
             echo "uv version mismatch: Dockerfile says $expected, image has $actual"

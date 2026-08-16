@@ -25,8 +25,18 @@ jobs:
       - name: Get current uv version from Dockerfile
         id: current
         run: |
-          version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)\S+' Dockerfile)
+          line=$(grep '^FROM ghcr.io/astral-sh/uv:' Dockerfile)
+          version=$(echo "$line" | grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+')
+          digest=""
+          if [[ "$line" == *"@"* ]]; then
+            digest="${line#*@}"
+            digest="${digest%% *}"
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.4
 
       - name: Get latest uv release
         id: latest
@@ -40,31 +50,42 @@ jobs:
           fi
           echo "version=$latest" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve digest of latest tag
+        id: latest_digest
+        run: |
+          digest=$(crane digest ghcr.io/astral-sh/uv:${{ steps.latest.outputs.version }})
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
       - name: Compare versions
         id: compare
         run: |
-          if [ "${{ steps.current.outputs.version }}" = "${{ steps.latest.outputs.version }}" ]; then
+          if [ "${{ steps.current.outputs.digest }}" = "${{ steps.latest_digest.outputs.digest }}" ]; then
             echo "up_to_date=true" >> "$GITHUB_OUTPUT"
           else
             echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "${{ steps.current.outputs.version }}" = "${{ steps.latest.outputs.version }}" ]; then
+            echo "pr_title=build(deps): refresh pinned digest for uv ${{ steps.current.outputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "pr_title=build(deps): bump uv from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Update Dockerfile
         if: steps.compare.outputs.up_to_date == 'false'
         run: |
-          sed -i "s|FROM ghcr.io/astral-sh/uv:.*|FROM ghcr.io/astral-sh/uv:${{ steps.latest.outputs.version }} AS uv|" Dockerfile
+          sed -i "s|FROM ghcr.io/astral-sh/uv:.*|FROM ghcr.io/astral-sh/uv:${{ steps.latest.outputs.version }}@${{ steps.latest_digest.outputs.digest }} AS uv|" Dockerfile
 
       - name: Create pull request
         if: steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}
-          commit-message: "build(deps): bump uv from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}"
-          title: "build(deps): bump uv from ${{ steps.current.outputs.version }} to ${{ steps.latest.outputs.version }}"
+          commit-message: "${{ steps.compare.outputs.pr_title }}"
+          title: "${{ steps.compare.outputs.pr_title }}"
           body: |
-            Bumps uv from `${{ steps.current.outputs.version }}` to `${{ steps.latest.outputs.version }}` in the Dockerfile.
+            ${{ steps.compare.outputs.pr_title }}.
 
-            Release notes: https://github.com/astral-sh/uv/releases/tag/${{ steps.latest.outputs.version }}
+            New digest: `${{ steps.latest_digest.outputs.digest }}`
           branch: bump-uv-version
           labels: dependencies,docker
           delete-branch: true
