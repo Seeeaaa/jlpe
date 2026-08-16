@@ -2,13 +2,15 @@
   {
     "name": "shap",
     "group": "ml",
-    "smoke_test": ".github/dep-probes/tests/shap.py",
+    "version": ">=0.50.0",
+    "smoke_test": ".github/dep-probes/tests/check_shap.py",
     "note": "excluded: conflicts with pinned numpy/scikit-learn range as of 2026-08"
   },
   {
     "name": "mlflow",
     "group": "ml",
-    "smoke_test": ".github/dep-probes/tests/mlflow.py",
+    "version": ">=3.0",
+    "smoke_test": ".github/dep-probes/tests/check_mlflow.py",
     "note": "excluded: pyarrow/protobuf upper bounds incompatible with current pins"
   }
 ]
