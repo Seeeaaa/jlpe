@@ -128,8 +128,8 @@ jobs:
             pyproject.toml
             uv.lock
             .github/dep-probes/candidates.json
-          commit-message: "feat(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
-          title: "feat(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
+          commit-message: "build(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
+          title: "build(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
           body: |
             Automated compatibility probe for `${{ matrix.name }}` succeeded: dependency
             resolution and the smoke test both passed against the currently pinned stack.
