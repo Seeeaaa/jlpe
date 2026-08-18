@@ -43,7 +43,7 @@ jobs:
         run: |
           latest=$(curl -sf -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             https://api.github.com/repos/astral-sh/uv/releases/latest \
-            | jq -r .tag_name | sed 's/^v//')
+            | jq -r .tag_name | sed 's/^v//') || true
           if [ -z "$latest" ]; then
             echo "::error::Failed to resolve latest uv version from GitHub API"
             exit 1
