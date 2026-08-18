@@ -67,7 +67,7 @@ jobs:
 
       - name: Install uv
         if: steps.guard.outputs.skip != 'true'
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           version: ${{ steps.uvver.outputs.version }}
 
