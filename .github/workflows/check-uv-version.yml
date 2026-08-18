@@ -71,7 +71,7 @@ jobs:
           fi
 
       - name: Update Dockerfile
-        if: steps.compare.outputs.up_to_date == 'false'
+        if: steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
         run: |
           sed -i "s|FROM ghcr.io/astral-sh/uv:.*|FROM ghcr.io/astral-sh/uv:${{ steps.latest.outputs.version }}@${{ steps.latest_digest.outputs.digest }} AS uv|" Dockerfile
 
