@@ -1,7 +1,7 @@
 name: Check dependency compatibility probes
 on:
   schedule:
-    - cron: "0 6 * * 1"  # weekly, Monday 06:00 UTC
+    - cron: "0 22 * * *"  # every day, 22:00 UTC
   push:
     branches: [main]
     paths:
@@ -50,7 +50,7 @@ jobs:
       - name: Extract uv version from Dockerfile
         id: uvver
         run: |
-          version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)\S+' Dockerfile)
+          version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+' Dockerfile)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Install uv
