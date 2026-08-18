@@ -23,6 +23,17 @@ jobs:
       matrix: ${{ steps.set.outputs.matrix }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Check if already enabled
+        id: guard
+        run: |
+          if grep -v '^\s*#' pyproject.toml | grep -qP "\"${{ matrix.name }}(==|>=|<=|~=|!=|\")"; then
+            echo "already present in pyproject.toml, skipping probe"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build matrix from candidates.json
         id: set
         run: |
@@ -49,20 +60,24 @@ jobs:
 
       - name: Extract uv version from Dockerfile
         id: uvver
+        if: steps.guard.outputs.skip != 'true'
         run: |
           version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+' Dockerfile)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Install uv
+        if: steps.guard.outputs.skip != 'true'
         uses: astral-sh/setup-uv@v9.0.0
         with:
           version: ${{ steps.uvver.outputs.version }}
 
       - name: Sync base environment (sanity check)
+        if: steps.guard.outputs.skip != 'true'
         run: uv sync --locked --all-groups
 
       - name: Try adding ${{ matrix.name }}
         id: add
+        if: steps.guard.outputs.skip != 'true'
         continue-on-error: true
         run: |
           spec="${{ matrix.name }}${{ matrix.version }}"
@@ -86,7 +101,7 @@ jobs:
           uv lock
 
       - name: Run smoke test for ${{ matrix.name }}
-        if: steps.add.outcome == 'success'
+        if: steps.guard.outputs.skip != 'true' && steps.add.outcome == 'success'
         id: smoke
         continue-on-error: true
         run: |
@@ -97,6 +112,13 @@ jobs:
             uv run --all-groups python -P -c "import ${{ matrix.name }}"
           fi
 
+      - name: Remove ${{ matrix.name }} from tracked candidates
+        if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success'
+        run: |
+          tmp=$(mktemp)
+          jq --arg name "${{ matrix.name }}" 'map(select(.name != $name))' .github/dep-probes/candidates.json > "$tmp"
+          mv "$tmp" .github/dep-probes/candidates.json
+
       - name: Create pull request
         if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success'
         uses: peter-evans/create-pull-request@v8
@@ -105,12 +127,22 @@ jobs:
           add-paths: |
             pyproject.toml
             uv.lock
+            .github/dep-probes/candidates.json
           commit-message: "feat(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
           title: "feat(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
           body: |
             Automated compatibility probe for `${{ matrix.name }}` succeeded: dependency
             resolution and the smoke test both passed against the currently pinned stack.
             Review the resolved version in pyproject.toml/uv.lock before merging.
+
+
+            This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`,
+            since it will no longer be excluded once merged.
+
+            Follow-up (not automated): fold `${{ matrix.smoke_test }}` into the main
+            "Smoke test - ML libraries" step in build.yml, so future ${{ matrix.name }}
+            version bumps get the same regression coverage as the rest of the ML stack.
+
           branch: enable-dep-${{ matrix.name }}
           labels: dependencies,compatibility-probe
           delete-branch: true
@@ -120,7 +152,9 @@ jobs:
         run: |
           {
             echo "### ${{ matrix.name }}"
-            if [ "${{ steps.add.outcome }}" != "success" ]; then
+            if [ "${{ steps.guard.outputs.skip }}" = "true" ]; then
+              echo "already enabled in pyproject.toml - remove it from candidates.json"
+            elif [ "${{ steps.add.outcome }}" != "success" ]; then
               echo "resolution failed - still incompatible"
             elif [ "${{ steps.smoke.outcome }}" != "success" ]; then
               echo "resolution OK, smoke test failed"
