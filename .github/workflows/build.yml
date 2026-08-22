@@ -170,6 +170,9 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             APT_BUST=${{ steps.date.outputs.date }}
+            VERSION=${{ steps.fullver.outputs.tag }}
+            REVISION=${{ steps.ref.outputs.sha }}
+            CREATED=${{ steps.date.outputs.date }}T00:00:00Z
           tags: |
             vyxan/jlpe_image:${{ steps.ref.outputs.sha }}
             vyxan/jlpe_image:${{ steps.fullver.outputs.tag }}
