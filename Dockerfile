@@ -1,6 +1,20 @@
 FROM ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 AS uv
 FROM python:3.13.15-slim-trixie@sha256:ffb752e139c0a19692a43af8d8523b274222dd68eebad5d583b45c2201c6e30a
 
+# OCI image metadata. VERSION/REVISION/CREATED are passed by build.yml from
+# the stamped pyproject version, commit sha and UTC date; defaults stay empty
+# so local builds never carry misleading labels.
+ARG VERSION=""
+ARG REVISION=""
+ARG CREATED=""
+LABEL org.opencontainers.image.title="JLPE" \
+      org.opencontainers.image.description="JupyterLab Portable Environment" \
+      org.opencontainers.image.source="https://github.com/Seeeaaa/jlpe" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version=$VERSION \
+      org.opencontainers.image.revision=$REVISION \
+      org.opencontainers.image.created=$CREATED
+
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
