@@ -35,7 +35,7 @@ docker pull vyxan/jlpe_image:latest
 
 **Run container** (without mounts):
 ```bash
-docker run -it -p 8888:8888 vyxan/jlpe_image:uv -c "jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888"
+docker run -it -p 8888:8888 vyxan/jlpe_image:latest -c "jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888"
 ```
 After starting, open the URL shown in the terminal (e.g. `http://127.0.0.1:8888/lab?token=...`) in your browser.
 
@@ -58,15 +58,6 @@ docker run -it -p 8888:8888 \
 --mount type=bind,source=/path/to/project_directory,target=/app/project_directory \
 --mount type=bind,source=/path/to/.jupyter,target=/root/.jupyter \
 vyxan/jlpe_image:<tag> -c "jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888"
-```
-
-#### Poetry-based images (older versions)
-If the image was built with Poetry, add `poetry run` before `jupyter lab`. Windows example:
-```powershell
-docker run -it -p 8888:8888 `
---mount type=bind,source=C:/project_directory,target=/app/project_directory `
---mount type=bind,source=C:/Users/<username>/.jupyter,target=/root/.jupyter `
-vyxan/jlpe_image:<tag> -c "poetry run jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888"
 ```
 
 #### VS Code integration
