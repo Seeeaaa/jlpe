@@ -9,6 +9,10 @@ ENV UV_CACHE_DIR=/opt/.cache/uv
 ENV UV_PYTHON_DOWNLOADS=never
 ENV PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
 
+# Cache-bust for the apt layer only: build.yml passes the UTC date, so this
+# ARG changes once a day and refreshes system packages without invalidating
+# the (much heavier) uv sync layers below.
+ARG APT_BUST=0
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential libgomp1 git postgresql-client && \
