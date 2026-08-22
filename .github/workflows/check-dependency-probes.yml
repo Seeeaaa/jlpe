@@ -24,16 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Check if already enabled
-        id: guard
-        run: |
-          if grep -v '^\s*#' pyproject.toml | grep -qP "\"${{ matrix.name }}(==|>=|<=|~=|!=|\")"; then
-            echo "already present in pyproject.toml, skipping probe"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Build matrix from candidates.json
         id: set
         run: |
@@ -57,6 +47,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      - name: Check if already enabled
+        id: guard
+        run: |
+          if grep -v '^\s*#' pyproject.toml | grep -qP "\"${{ matrix.name }}(==|>=|<=|~=|!=|\")"; then
+            echo "already present in pyproject.toml, skipping probe"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Extract uv version from Dockerfile
         id: uvver
