@@ -41,7 +41,7 @@ jobs:
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Install crane
-        uses: imjasonh/setup-crane@v0.7
+        uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
 
       - name: Get latest matching tag from Docker Hub
         id: latest
@@ -87,7 +87,7 @@ jobs:
 
       - name: Create pull request
         if: steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}
           commit-message: "${{ steps.compare.outputs.pr_title }}"
