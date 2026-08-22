@@ -24,6 +24,10 @@ jobs:
     # [skip build] marks a commit made by stamp-date itself: without this
     # check, that commit's own push would re-trigger the whole pipeline for
     # content that was already built and pushed in the run that made it.
+    # The stamp-date job guards this marker before pushing (see the
+    # "Commit and push" step there); skip-build-notice below watches the
+    # reverse case (marker present on a human commit that changes image
+    # content).
     if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip build]')
     outputs:
       image: ${{ steps.filter.outputs.image }}
@@ -102,15 +106,72 @@ jobs:
       - name: Commit and push
         if: steps.diff.outputs.changed == 'true'
         run: |
+          msg="chore: sync uv.lock and bump image version date [skip build]"
+
+          # Guard: the whole no-rebuild-loop scheme rests on this marker.
+          # The changes job skips any push whose head commit message contains
+          # [skip build]. If this stamp commit ever lost that marker, its own
+          # push would re-trigger the pipeline for the same pyproject.toml /
+          # uv.lock changes, produce another stamp commit, and loop forever.
+          # Fail here, before pushing, instead of creating that loop.
+          case "$msg" in
+            *"[skip build]"*) ;;
+            *)
+              echo "FATAL: stamp-date commit message lost its [skip build] marker."
+              echo "Message was:"
+              echo "  $msg"
+              echo ""
+              echo "The changes job only skips pushes whose head commit message"
+              echo "contains [skip build]. Pushing a stamp commit without it would"
+              echo "re-trigger the full pipeline for content that was just built,"
+              echo "stamp again, and enter an infinite rebuild loop."
+              exit 1
+              ;;
+          esac
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pyproject.toml uv.lock
-          git commit -m "chore: sync uv.lock and bump image version date [skip build]"
+          git commit -m "$msg"
           git push
 
       - name: Resolve final SHA
         id: resolve
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  # Watchdog for the other side of the [skip build] contract. "[skip build]"
+  # is NOT a native GitHub Actions skip directive (only [skip ci], [ci skip],
+  # [no ci], [skip actions] are) -- here it works solely because of the
+  # if-condition on the changes job above. That means a human commit carrying
+  # the marker while still touching pyproject.toml / uv.lock silently changes
+  # image content with no build, smoke test, or Docker Hub publish behind it.
+  # Surface that loudly instead of letting it slip through unnoticed.
+  # Stamp commits themselves are exempt: they are authored by the bot and
+  # legitimately skip the rebuild because the build job consumes their SHA in
+  # this very workflow run (needs: stamp-date).
+  skip-build-notice:
+    if: >-
+      github.event_name == 'push' &&
+      contains(github.event.head_commit.message, '[skip build]') &&
+      github.event.head_commit.author.username != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Warn if [skip build] suppressed an image-content change
+        run: |
+          if git diff --quiet HEAD^ HEAD -- pyproject.toml uv.lock; then
+            echo "Commit is marked [skip build] and does not touch pyproject.toml or uv.lock."
+            echo "No image content was skipped; nothing to do."
+          else
+            echo "::warning::This commit is marked [skip build] but modifies pyproject.toml and/or uv.lock."
+            echo "::warning::Image content changed WITHOUT a build, smoke test, or Docker Hub publish."
+            echo "::warning::If this was unintended, push a follow-up commit without the marker,"
+            echo "::warning::or re-run the pipeline via workflow_dispatch with force_push=true."
+            exit 0
+          fi
 
   build:
     needs: [changes, stamp-date]
