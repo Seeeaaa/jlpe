@@ -139,6 +139,40 @@ jobs:
         id: resolve
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+  # Watchdog for the other side of the [skip build] contract. "[skip build]"
+  # is NOT a native GitHub Actions skip directive (only [skip ci], [ci skip],
+  # [no ci], [skip actions] are) -- here it works solely because of the
+  # if-condition on the changes job above. That means a human commit carrying
+  # the marker while still touching pyproject.toml / uv.lock silently changes
+  # image content with no build, smoke test, or Docker Hub publish behind it.
+  # Surface that loudly instead of letting it slip through unnoticed.
+  # Stamp commits themselves are exempt: they are authored by the bot and
+  # legitimately skip the rebuild because the build job consumes their SHA in
+  # this very workflow run (needs: stamp-date).
+  skip-build-notice:
+    if: >-
+      github.event_name == 'push' &&
+      contains(github.event.head_commit.message, '[skip build]') &&
+      github.event.head_commit.author.username != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Warn if [skip build] suppressed an image-content change
+        run: |
+          if git diff --quiet HEAD^ HEAD -- pyproject.toml uv.lock; then
+            echo "Commit is marked [skip build] and does not touch pyproject.toml or uv.lock."
+            echo "No image content was skipped; nothing to do."
+          else
+            echo "::warning::This commit is marked [skip build] but modifies pyproject.toml and/or uv.lock."
+            echo "::warning::Image content changed WITHOUT a build, smoke test, or Docker Hub publish."
+            echo "::warning::If this was unintended, push a follow-up commit without the marker,"
+            echo "::warning::or re-run the pipeline via workflow_dispatch with force_push=true."
+            exit 0
+          fi
+
   build:
     needs: [changes, stamp-date]
     if: |
