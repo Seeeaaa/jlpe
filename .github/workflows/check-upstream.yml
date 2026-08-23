@@ -328,7 +328,11 @@ jobs:
     needs: dependency-probes
     # A matrix with zero entries is a hard error in GitHub Actions, so this
     # guards the case where probe_only doesn't match any candidate name.
-    if: needs.dependency-probes.outputs.matrix != '[]'
+    # always() is required because the transitive needs closure includes
+    # intermediate-deps: when it is skipped (checks=probes), GitHub skips
+    # dependents whose if lacks always() regardless of their direct parent's
+    # success - seen in practice as probe silently skipped on partial runs.
+    if: always() && needs.dependency-probes.result == 'success' && needs.dependency-probes.outputs.matrix != '[]'
     strategy:
       fail-fast: false
       matrix:
