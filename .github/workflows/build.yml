@@ -472,6 +472,63 @@ jobs:
           print("sqlalchemy + psycopg driver: OK")
           EOF
 
+      - name: Smoke test - visualization stack
+        run: |
+          docker exec -i test_container python - <<'EOF'
+          import io
+
+          import colorcet as cc
+          import matplotlib
+
+          matplotlib.use("Agg")
+          import matplotlib.pyplot as plt
+          import numpy as np
+          import plotly
+          import plotly.express as px
+          import seaborn as sns
+
+          # PNG file signature: 0x89 'P' 'N' 'G'
+          PNG_SIG = bytes([0x89, 0x50, 0x4E, 0x47])
+
+          # matplotlib: render a real figure to PNG bytes via the Agg backend --
+          # catches broken freetype/pillow wiring that a bare import misses
+          buf = io.BytesIO()
+          fig, ax = plt.subplots()
+          ax.plot([0, 1], [0, 1])
+          fig.savefig(buf, format="png")
+          png = buf.getvalue()
+          assert png.startswith(PNG_SIG), f"not a PNG: {png[:8]!r}"
+          print(f"matplotlib {matplotlib.__version__}: OK (rendered PNG, {len(png)} bytes)")
+
+          # seaborn: build a heatmap from real data and render it -- exercises
+          # the full seaborn -> matplotlib integration path, not just the import
+          data = np.arange(100).reshape(10, 10)
+          fig, ax = plt.subplots()
+          sns.heatmap(data, ax=ax)
+          buf = io.BytesIO()
+          fig.savefig(buf, format="png")
+          assert buf.getvalue().startswith(PNG_SIG)
+          print("seaborn: OK (heatmap rendered)")
+
+          # plotly: build a figure and serialize it to standalone HTML --
+          # validates the JS-bundle embedding path used when figures land
+          # in notebooks
+          pfig = px.scatter(x=[1, 2, 3], y=[3, 1, 2])
+          html = pfig.to_html(full_html=True, include_plotlyjs=False)
+          assert "<div" in html and "</div>" in html, "plotly produced unexpected HTML"
+          print(f"plotly {plotly.__version__}: OK (to_html)")
+
+          # colorcet: use cc.cm.fire as a cmap in an actual imshow render --
+          # verifies registered colormaps work through matplotlib's colormap
+          # machinery, not just that they exist
+          fig, ax = plt.subplots()
+          ax.imshow(np.arange(256).reshape(16, 16), cmap=cc.cm.fire)
+          buf = io.BytesIO()
+          fig.savefig(buf, format="png")
+          assert buf.getvalue().startswith(PNG_SIG)
+          print("colorcet: OK (cc.cm.fire as cmap)")
+          EOF
+
       - name: Smoke test - JupyterLab starts and kernel is registered
         run: |
           # `docker exec -d` output is not captured by `docker logs`, so redirect
@@ -502,6 +559,19 @@ jobs:
           docker exec test_container jupyter kernelspec list | grep -qi python3 \
             || { echo "No python3 kernel registered"; exit 1; }
           echo "Kernel check: OK"
+      - name: Smoke test - JupyterLab extensions resolve
+        run: |
+          # `jupyter labextension list` exits 0 even when an extension failed to
+          # resolve, so also check the per-extension status column: each line is
+          # "<name> v<version> enabled|disabled OK|X", where a bare `X` marks a
+          # resolution failure.
+          docker exec test_container jupyter labextension list | tee /tmp/labext.txt
+          if grep -Eq '[[:space:]]X([[:space:]]|$)' /tmp/labext.txt; then
+            echo "One or more lab extensions failed to resolve:"
+            grep -E '[[:space:]]X([[:space:]]|$)' /tmp/labext.txt
+            exit 1
+          fi
+          echo "All lab extensions resolved: OK"
 
   push:
     needs: [changes, smoke-test, build]
