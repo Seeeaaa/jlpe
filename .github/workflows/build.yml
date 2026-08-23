@@ -24,6 +24,10 @@ jobs:
     # [skip build] marks a commit made by stamp-date itself: without this
     # check, that commit's own push would re-trigger the whole pipeline for
     # content that was already built and pushed in the run that made it.
+    # The stamp-date job guards this marker before pushing (see the
+    # "Commit and push" step there); skip-build-notice below watches the
+    # reverse case (marker present on a human commit that changes image
+    # content).
     if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip build]')
     outputs:
       image: ${{ steps.filter.outputs.image }}
@@ -102,10 +106,33 @@ jobs:
       - name: Commit and push
         if: steps.diff.outputs.changed == 'true'
         run: |
+          msg="chore: sync uv.lock and bump image version date [skip build]"
+
+          # Guard: the whole no-rebuild-loop scheme rests on this marker.
+          # The changes job skips any push whose head commit message contains
+          # [skip build]. If this stamp commit ever lost that marker, its own
+          # push would re-trigger the pipeline for the same pyproject.toml /
+          # uv.lock changes, produce another stamp commit, and loop forever.
+          # Fail here, before pushing, instead of creating that loop.
+          case "$msg" in
+            *"[skip build]"*) ;;
+            *)
+              echo "FATAL: stamp-date commit message lost its [skip build] marker."
+              echo "Message was:"
+              echo "  $msg"
+              echo ""
+              echo "The changes job only skips pushes whose head commit message"
+              echo "contains [skip build]. Pushing a stamp commit without it would"
+              echo "re-trigger the full pipeline for content that was just built,"
+              echo "stamp again, and enter an infinite rebuild loop."
+              exit 1
+              ;;
+          esac
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pyproject.toml uv.lock
-          git commit -m "chore: sync uv.lock and bump image version date [skip build]"
+          git commit -m "$msg"
           git push
 
       - name: Resolve final SHA
@@ -411,6 +438,63 @@ jobs:
           print("sqlalchemy + psycopg driver: OK")
           EOF
 
+      - name: Smoke test - visualization stack
+        run: |
+          docker exec -i test_container python - <<'EOF'
+          import io
+
+          import colorcet as cc
+          import matplotlib
+
+          matplotlib.use("Agg")
+          import matplotlib.pyplot as plt
+          import numpy as np
+          import plotly
+          import plotly.express as px
+          import seaborn as sns
+
+          # PNG file signature: 0x89 'P' 'N' 'G'
+          PNG_SIG = bytes([0x89, 0x50, 0x4E, 0x47])
+
+          # matplotlib: render a real figure to PNG bytes via the Agg backend --
+          # catches broken freetype/pillow wiring that a bare import misses
+          buf = io.BytesIO()
+          fig, ax = plt.subplots()
+          ax.plot([0, 1], [0, 1])
+          fig.savefig(buf, format="png")
+          png = buf.getvalue()
+          assert png.startswith(PNG_SIG), f"not a PNG: {png[:8]!r}"
+          print(f"matplotlib {matplotlib.__version__}: OK (rendered PNG, {len(png)} bytes)")
+
+          # seaborn: build a heatmap from real data and render it -- exercises
+          # the full seaborn -> matplotlib integration path, not just the import
+          data = np.arange(100).reshape(10, 10)
+          fig, ax = plt.subplots()
+          sns.heatmap(data, ax=ax)
+          buf = io.BytesIO()
+          fig.savefig(buf, format="png")
+          assert buf.getvalue().startswith(PNG_SIG)
+          print("seaborn: OK (heatmap rendered)")
+
+          # plotly: build a figure and serialize it to standalone HTML --
+          # validates the JS-bundle embedding path used when figures land
+          # in notebooks
+          pfig = px.scatter(x=[1, 2, 3], y=[3, 1, 2])
+          html = pfig.to_html(full_html=True, include_plotlyjs=False)
+          assert "<div" in html and "</div>" in html, "plotly produced unexpected HTML"
+          print(f"plotly {plotly.__version__}: OK (to_html)")
+
+          # colorcet: use cc.cm.fire as a cmap in an actual imshow render --
+          # verifies registered colormaps work through matplotlib's colormap
+          # machinery, not just that they exist
+          fig, ax = plt.subplots()
+          ax.imshow(np.arange(256).reshape(16, 16), cmap=cc.cm.fire)
+          buf = io.BytesIO()
+          fig.savefig(buf, format="png")
+          assert buf.getvalue().startswith(PNG_SIG)
+          print("colorcet: OK (cc.cm.fire as cmap)")
+          EOF
+
       - name: Smoke test - JupyterLab starts and kernel is registered
         run: |
           # `docker exec -d` output is not captured by `docker logs`, so redirect
@@ -441,6 +525,19 @@ jobs:
           docker exec test_container jupyter kernelspec list | grep -qi python3 \
             || { echo "No python3 kernel registered"; exit 1; }
           echo "Kernel check: OK"
+      - name: Smoke test - JupyterLab extensions resolve
+        run: |
+          # `jupyter labextension list` exits 0 even when an extension failed to
+          # resolve, so also check the per-extension status column: each line is
+          # "<name> v<version> enabled|disabled OK|X", where a bare `X` marks a
+          # resolution failure.
+          docker exec test_container jupyter labextension list | tee /tmp/labext.txt
+          if grep -Eq '[[:space:]]X([[:space:]]|$)' /tmp/labext.txt; then
+            echo "One or more lab extensions failed to resolve:"
+            grep -E '[[:space:]]X([[:space:]]|$)' /tmp/labext.txt
+            exit 1
+          fi
+          echo "All lab extensions resolved: OK"
 
   push:
     needs: [changes, smoke-test, build]
