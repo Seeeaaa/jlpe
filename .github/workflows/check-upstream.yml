@@ -87,7 +87,7 @@ jobs:
           comp_json="["
           first=1
           for c in python uv; do
-            case ",$raw," in
+            case ",$checks," in
               *",$c,"*)
                 if [ $first -eq 0 ]; then comp_json="$comp_json,"; fi
                 comp_json="$comp_json{\"component\":\"$c\"}"
