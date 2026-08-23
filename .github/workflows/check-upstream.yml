@@ -127,10 +127,13 @@ jobs:
 
   # Base image freshness: one job with a component matrix replaces the two
   # near-identical check-python-version / check-uv-version workflows.
-  # Selection uses needs.versions.outputs.checks (normalized csv); a
-  # non-selected component skips the whole matrix leg via job-level if.
+  # A matrix with zero entries is a hard strategy error in GitHub Actions
+  # (same constraint the probe job guards against), so when no base-image
+  # check is selected the components output is "[]" and this job is gated
+  # by an if on that value instead.
   bump-base:
     needs: versions
+    if: needs.versions.outputs.components != '[]'
     strategy:
       fail-fast: false
       matrix:
