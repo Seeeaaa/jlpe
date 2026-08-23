@@ -52,9 +52,17 @@ jobs:
   # Shared extraction of pinned versions from the Dockerfile. Every check
   # needs at least one of these; doing it once removes the four copies of
   # grep logic that existed across the old workflows.
+  # Base image freshness: one job with a component matrix replaces the two
+  # near-identical check-python-version / check-uv-version workflows.
+  # CHECKS is normalized here (empty string means "all"): GitHub delivers an
+  # empty dispatch input as null, and contains(null, x) evaluates on the
+  # string "null", which broke selection in the first revision - every
+  # non-bump job skipped on a full run, and bump-base ran when only probes
+  # was selected. The normalize step guarantees a real csv string.
   versions:
     runs-on: ubuntu-latest
     outputs:
+      checks: ${{ steps.norm.outputs.checks }}
       python_version: ${{ steps.extract.outputs.python_version }}
       python_suffix: ${{ steps.extract.outputs.python_suffix }}
       python_digest: ${{ steps.extract.outputs.python_digest }}
@@ -62,6 +70,16 @@ jobs:
       uv_digest: ${{ steps.extract.outputs.uv_digest }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Normalize checks csv (empty = all)
+        id: norm
+        run: |
+          raw="${{ github.event_name == 'workflow_dispatch' && inputs.checks || '' }}"
+          if [ -z "$raw" ]; then
+            echo "checks=python,uv,intermediate,probes,outdated" >> "$GITHUB_OUTPUT"
+          else
+            echo "checks=$raw" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Extract pinned versions from Dockerfile
         id: extract
@@ -88,8 +106,8 @@ jobs:
 
   # Base image freshness: one job with a component matrix replaces the two
   # near-identical check-python-version / check-uv-version workflows.
-  # Per-component selection on dispatch uses RUN_THIS (an env-level flag):
-  # matrix entries whose component is not in the csv exit early.
+  # Selection uses needs.versions.outputs.checks (normalized csv); a
+  # non-selected component skips the whole matrix leg via job-level if.
   bump-base:
     needs: versions
     strategy:
@@ -98,23 +116,15 @@ jobs:
         include:
           - component: python
           - component: uv
+    if: contains(needs.versions.outputs.checks, matrix.component)
     runs-on: ubuntu-latest
-    env:
-      RUN_THIS: ${{ github.event_name != 'workflow_dispatch' || contains(inputs.checks, matrix.component) }}
     steps:
-      - name: Skip if not selected
-        if: env.RUN_THIS != 'true'
-        run: echo "component ${{ matrix.component }} not selected"
-
       - uses: actions/checkout@v7
-        if: env.RUN_THIS == 'true'
 
       - name: Install crane
-        if: env.RUN_THIS == 'true'
         uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
 
       - name: Get current pin (${{ matrix.component }})
-        if: env.RUN_THIS == 'true'
         id: current
         run: |
           if [ "${{ matrix.component }}" = "python" ]; then
@@ -133,7 +143,6 @@ jobs:
           echo "version_re=$version_re" >> "$GITHUB_OUTPUT"
 
       - name: Get latest matching version (${{ matrix.component }})
-        if: env.RUN_THIS == 'true'
         id: latest
         run: |
           if [ "${{ matrix.component }}" = "python" ]; then
@@ -160,14 +169,12 @@ jobs:
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
 
       - name: Resolve digest of latest (${{ matrix.component }})
-        if: env.RUN_THIS == 'true'
         id: latest_digest
         run: |
           digest=$(crane digest "${{ steps.latest.outputs.ref }}")
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Compare and build PR title (${{ matrix.component }})
-        if: env.RUN_THIS == 'true'
         id: compare
         run: |
           if [ "${{ steps.current.outputs.digest }}" = "${{ steps.latest_digest.outputs.digest }}" ]; then
@@ -196,7 +203,7 @@ jobs:
           fi
 
       - name: Update Dockerfile (${{ matrix.component }})
-        if: env.RUN_THIS == 'true' && steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
+        if: steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
         run: |
           if [ "${{ matrix.component }}" = "python" ]; then
             sed -i -E "s|^FROM python:${{ steps.current.outputs.version_re }}-${{ steps.current.outputs.suffix }}(@sha256:[0-9a-f]+)?|FROM ${{ steps.compare.outputs.image_ref }}@${{ steps.latest_digest.outputs.digest }}|" Dockerfile
@@ -205,7 +212,7 @@ jobs:
           fi
 
       - name: Create pull request (${{ matrix.component }})
-        if: env.RUN_THIS == 'true' && steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
+        if: steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}
@@ -225,7 +232,7 @@ jobs:
   # 20:00 -> 22:00 clock staggering).
   intermediate-deps:
     needs: versions
-    if: github.event_name != 'workflow_dispatch' || contains(inputs.checks, 'intermediate')
+    if: contains(needs.versions.outputs.checks, 'intermediate')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -271,7 +278,7 @@ jobs:
   # run never interleaves the two uv.lock consumers.
   dependency-probes:
     needs: [versions, intermediate-deps]
-    if: always() && (github.event_name != 'workflow_dispatch' || contains(inputs.checks, 'probes')) && needs.versions.result == 'success' && (needs.intermediate-deps.result == 'success' || needs.intermediate-deps.result == 'skipped')
+    if: always() && contains(needs.versions.outputs.checks, 'probes') && needs.versions.result == 'success' && (needs.intermediate-deps.result == 'success' || needs.intermediate-deps.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
@@ -424,7 +431,7 @@ jobs:
   # Informational only: lists outdated packages as a warning in the job log.
   outdated-report:
     needs: versions
-    if: github.event_name != 'workflow_dispatch' || contains(inputs.checks, 'outdated')
+    if: contains(needs.versions.outputs.checks, 'outdated')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
