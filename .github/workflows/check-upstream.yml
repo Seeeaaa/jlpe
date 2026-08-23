@@ -63,6 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       checks: ${{ steps.norm.outputs.checks }}
+      components: ${{ steps.norm.outputs.components }}
       python_version: ${{ steps.extract.outputs.python_version }}
       python_suffix: ${{ steps.extract.outputs.python_suffix }}
       python_digest: ${{ steps.extract.outputs.python_digest }}
@@ -80,6 +81,22 @@ jobs:
           else
             echo "checks=$raw" >> "$GITHUB_OUTPUT"
           fi
+          # Dynamic matrix for bump-base: only the selected components become
+          # matrix entries. The matrix context is unavailable in job-level if,
+          # so filtering happens here instead of a job condition.
+          comp_json="["
+          first=1
+          for c in python uv; do
+            case ",$raw," in
+              *",$c,"*)
+                if [ $first -eq 0 ]; then comp_json="$comp_json,"; fi
+                comp_json="$comp_json{\"component\":\"$c\"}"
+                first=0
+                ;;
+            esac
+          done
+          comp_json="$comp_json]"
+          echo "components=$comp_json" >> "$GITHUB_OUTPUT"
 
       - name: Extract pinned versions from Dockerfile
         id: extract
@@ -113,10 +130,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - component: python
-          - component: uv
-    if: contains(needs.versions.outputs.checks, matrix.component)
+        include: ${{ fromJson(needs.versions.outputs.components) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
