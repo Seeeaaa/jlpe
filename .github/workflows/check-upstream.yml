@@ -1,0 +1,448 @@
+name: Check upstream drift
+
+# Consolidated daily checks that used to live in five separate workflows:
+#   check-python-version.yml       -> bump-base (matrix component: python)
+#   check-uv-version.yml           -> bump-base (matrix component: uv)
+#   check-intermediate-deps.yml    -> intermediate-deps
+#   check-dependency-probes.yml    -> dependency-probes + probe
+#   check-dependencies-on-push.yml -> outdated-report
+#
+# Ordering: the old files used staggered cron hours (20/21/22) so an earlier
+# check could finish before a later one started. Inside one workflow the
+# ordering is explicit via needs:, which is deterministic instead of
+# clock-based. bump-base opens PRs but never touches main directly, so
+# intermediate-deps and dependency-probes always resolve against main's
+# uv.lock regardless of matrix outcomes.
+#
+# Manual runs: "Run workflow" shows two fields.
+#   checks     - csv subset of python,uv,intermediate,probes,outdated
+#                (empty = run everything, like the scheduled nightly run)
+#   probe_only - single candidate name for probes; used only when checks
+#                includes "probes" (replaces the old per-workflow input)
+
+on:
+  schedule:
+    - cron: "0 20 * * *" # every day, 20:00 UTC (single slot replaces 20/21/22)
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/check-upstream.yml"
+  workflow_dispatch:
+    inputs:
+      checks:
+        description: "Checks to run: csv from python,uv,intermediate,probes,outdated (empty = all)"
+        required: false
+        type: string
+      probe_only:
+        description: "Probes: single candidate name (used only when checks includes probes)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  # Shared extraction of pinned versions from the Dockerfile. Every check
+  # needs at least one of these; doing it once removes the four copies of
+  # grep logic that existed across the old workflows.
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      python_version: ${{ steps.extract.outputs.python_version }}
+      python_suffix: ${{ steps.extract.outputs.python_suffix }}
+      python_digest: ${{ steps.extract.outputs.python_digest }}
+      uv_version: ${{ steps.extract.outputs.uv_version }}
+      uv_digest: ${{ steps.extract.outputs.uv_digest }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract pinned versions from Dockerfile
+        id: extract
+        run: |
+          py_line=$(grep '^FROM python:' Dockerfile)
+          py_full=$(echo "$py_line" | grep -oP '(?<=^FROM python:)[^@\s]+')
+          py_digest=""
+          if [[ "$py_line" == *"@"* ]]; then
+            py_digest="${py_line#*@}"
+            py_digest="${py_digest%% *}"
+          fi
+          echo "python_version=$(echo "$py_full" | grep -oP '^[0-9.]+')" >> "$GITHUB_OUTPUT"
+          echo "python_suffix=$(echo "$py_full" | sed -E 's/^[0-9.]+-//')" >> "$GITHUB_OUTPUT"
+          echo "python_digest=$py_digest" >> "$GITHUB_OUTPUT"
+
+          uv_line=$(grep '^FROM ghcr.io/astral-sh/uv:' Dockerfile)
+          echo "uv_version=$(echo "$uv_line" | grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+')" >> "$GITHUB_OUTPUT"
+          uv_digest=""
+          if [[ "$uv_line" == *"@"* ]]; then
+            uv_digest="${uv_line#*@}"
+            uv_digest="${uv_digest%% *}"
+          fi
+          echo "uv_digest=$uv_digest" >> "$GITHUB_OUTPUT"
+
+  # Base image freshness: one job with a component matrix replaces the two
+  # near-identical check-python-version / check-uv-version workflows.
+  # Per-component selection on dispatch uses RUN_THIS (an env-level flag):
+  # matrix entries whose component is not in the csv exit early.
+  bump-base:
+    needs: versions
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: python
+          - component: uv
+    runs-on: ubuntu-latest
+    env:
+      RUN_THIS: ${{ github.event_name != 'workflow_dispatch' || contains(inputs.checks, matrix.component) }}
+    steps:
+      - name: Skip if not selected
+        if: env.RUN_THIS != 'true'
+        run: echo "component ${{ matrix.component }} not selected"
+
+      - uses: actions/checkout@v7
+        if: env.RUN_THIS == 'true'
+
+      - name: Install crane
+        if: env.RUN_THIS == 'true'
+        uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
+
+      - name: Get current pin (${{ matrix.component }})
+        if: env.RUN_THIS == 'true'
+        id: current
+        run: |
+          if [ "${{ matrix.component }}" = "python" ]; then
+            version="${{ needs.versions.outputs.python_version }}"
+            suffix="${{ needs.versions.outputs.python_suffix }}"
+            digest="${{ needs.versions.outputs.python_digest }}"
+          else
+            version="${{ needs.versions.outputs.uv_version }}"
+            suffix=""
+            digest="${{ needs.versions.outputs.uv_digest }}"
+          fi
+          version_re="${version//./\\.}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "version_re=$version_re" >> "$GITHUB_OUTPUT"
+
+      - name: Get latest matching version (${{ matrix.component }})
+        if: env.RUN_THIS == 'true'
+        id: latest
+        run: |
+          if [ "${{ matrix.component }}" = "python" ]; then
+            minor=$(echo "${{ steps.current.outputs.version }}" | cut -d. -f1,2)
+            minor_re="${minor//./\\.}"
+            suffix="${{ steps.current.outputs.suffix }}"
+            latest=$(curl -sf "https://raw.githubusercontent.com/docker-library/official-images/master/library/python" \
+              | grep "^Tags: " \
+              | grep -oE "${minor_re}\.[0-9]+-${suffix}" \
+              | sed "s/-${suffix}\$//" \
+              | sort -V | tail -1) || true
+            ref="python:${latest}-${suffix}"
+          else
+            latest=$(curl -sf -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              https://api.github.com/repos/astral-sh/uv/releases/latest \
+              | jq -r .tag_name | sed 's/^v//') || true
+            ref="ghcr.io/astral-sh/uv:${latest}"
+          fi
+          if [ -z "$latest" ]; then
+            echo "::error::Failed to resolve latest version for ${{ matrix.component }}"
+            exit 1
+          fi
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve digest of latest (${{ matrix.component }})
+        if: env.RUN_THIS == 'true'
+        id: latest_digest
+        run: |
+          digest=$(crane digest "${{ steps.latest.outputs.ref }}")
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Compare and build PR title (${{ matrix.component }})
+        if: env.RUN_THIS == 'true'
+        id: compare
+        run: |
+          if [ "${{ steps.current.outputs.digest }}" = "${{ steps.latest_digest.outputs.digest }}" ]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+            echo "${{ matrix.component }} is up to date"
+            exit 0
+          fi
+          echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+          cur="${{ steps.current.outputs.version }}"
+          new="${{ steps.latest.outputs.version }}"
+          if [ "${{ matrix.component }}" = "python" ]; then
+            suf="${{ steps.current.outputs.suffix }}"
+            if [ "$cur" = "$new" ]; then
+              echo "pr_title=build(deps): refresh pinned digest for python:${cur}-${suf}" >> "$GITHUB_OUTPUT"
+            else
+              echo "pr_title=build(deps): bump python from ${cur} to ${new}" >> "$GITHUB_OUTPUT"
+            fi
+            echo "image_ref=python:${new}-${suf}" >> "$GITHUB_OUTPUT"
+          else
+            if [ "$cur" = "$new" ]; then
+              echo "pr_title=build(deps): refresh pinned digest for uv ${cur}" >> "$GITHUB_OUTPUT"
+            else
+              echo "pr_title=build(deps): bump uv from ${cur} to ${new}" >> "$GITHUB_OUTPUT"
+            fi
+            echo "image_ref=ghcr.io/astral-sh/uv:${new}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update Dockerfile (${{ matrix.component }})
+        if: env.RUN_THIS == 'true' && steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
+        run: |
+          if [ "${{ matrix.component }}" = "python" ]; then
+            sed -i -E "s|^FROM python:${{ steps.current.outputs.version_re }}-${{ steps.current.outputs.suffix }}(@sha256:[0-9a-f]+)?|FROM ${{ steps.compare.outputs.image_ref }}@${{ steps.latest_digest.outputs.digest }}|" Dockerfile
+          else
+            sed -i "s|FROM ghcr.io/astral-sh/uv:.*|FROM ghcr.io/astral-sh/uv:${{ steps.latest.outputs.version }}@${{ steps.latest_digest.outputs.digest }} AS uv|" Dockerfile
+          fi
+
+      - name: Create pull request (${{ matrix.component }})
+        if: env.RUN_THIS == 'true' && steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          token: ${{ secrets.PAT_FOR_BOTS }}
+          commit-message: "${{ steps.compare.outputs.pr_title }}"
+          title: "${{ steps.compare.outputs.pr_title }}"
+          body: |
+            ${{ steps.compare.outputs.pr_title }}.
+
+            New digest: `${{ steps.latest_digest.outputs.digest }}`
+          branch: bump-${{ matrix.component }}-version
+          labels: dependencies,docker
+          delete-branch: true
+
+  # Transitive dependency refresh: uv lock --upgrade against main's pins,
+  # PR when the lock actually moved. Runs before probes so both jobs work
+  # against main's uv.lock in a deterministic order (replaces the old
+  # 20:00 -> 22:00 clock staggering).
+  intermediate-deps:
+    needs: versions
+    if: github.event_name != 'workflow_dispatch' || contains(inputs.checks, 'intermediate')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: ${{ needs.versions.outputs.uv_version }}
+
+      - name: Upgrade lock file
+        run: uv lock --upgrade
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet -- uv.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create pull request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          token: ${{ secrets.PAT_FOR_BOTS }}
+          add-paths: uv.lock
+          commit-message: "build(deps): upgrade transitive dependencies in uv.lock"
+          title: "build(deps): upgrade transitive dependencies in uv.lock"
+          body: |
+            Automated `uv lock --upgrade` run. Only transitive/indirect
+            dependency versions are affected, top-level pins in
+            `pyproject.toml` are unchanged.
+          branch: upgrade-intermediate-deps
+          labels: dependencies
+          delete-branch: true
+
+  # Compatibility probes for previously excluded packages. Probe logic is
+  # unchanged from check-dependency-probes.yml (guard fixed in #79); only
+  # the trigger wiring moved here. Needs intermediate-deps to preserve the
+  # old clock staggering semantics in explicit form: probes start only after
+  # the lock refresh job has finished (success or skipped), so a scheduled
+  # run never interleaves the two uv.lock consumers.
+  dependency-probes:
+    needs: [versions, intermediate-deps]
+    if: always() && (github.event_name != 'workflow_dispatch' || contains(inputs.checks, 'probes')) && needs.versions.result == 'success' && (needs.intermediate-deps.result == 'success' || needs.intermediate-deps.result == 'skipped')
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+      uv_version: ${{ steps.uvver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract uv version from Dockerfile
+        id: uvver
+        run: |
+          version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+' Dockerfile)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build matrix from candidates.json
+        id: set
+        run: |
+          only="${{ inputs.probe_only }}"
+          if [ -n "$only" ]; then
+            matrix=$(jq -c --arg only "$only" '[.[] | select(.name == $only)]' .github/dep-probes/candidates.json)
+          else
+            matrix=$(jq -c . .github/dep-probes/candidates.json)
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  probe:
+    needs: dependency-probes
+    # A matrix with zero entries is a hard error in GitHub Actions, so this
+    # guards the case where probe_only doesn't match any candidate name.
+    if: needs.dependency-probes.outputs.matrix != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.dependency-probes.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check if already enabled
+        id: guard
+        run: |
+          if grep -v '^\s*#' pyproject.toml | grep -qP "\"${{ matrix.name }}(==|>=|<=|~=|!=|\")"; then
+            echo "already present in pyproject.toml, skipping probe"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install uv
+        if: steps.guard.outputs.skip != 'true'
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: ${{ needs.dependency-probes.outputs.uv_version }}
+
+      - name: Sync base environment (sanity check)
+        if: steps.guard.outputs.skip != 'true'
+        run: uv sync --locked --all-groups
+
+      - name: Try adding ${{ matrix.name }}
+        id: add
+        if: steps.guard.outputs.skip != 'true'
+        continue-on-error: true
+        run: |
+          spec="${{ matrix.name }}${{ matrix.version }}"
+          uv add --group "${{ matrix.group }}" "$spec"
+
+      - name: Pin exact resolved version
+        if: steps.add.outcome == 'success'
+        run: |
+          exact=$(uv run python -c "
+          import tomllib
+          with open('uv.lock', 'rb') as f:
+              lock = tomllib.load(f)
+          for pkg in lock['package']:
+              if pkg['name'] == '${{ matrix.name }}':
+                  print(pkg['version'])
+                  break
+          else:
+              raise SystemExit('${{ matrix.name }} not found in uv.lock')
+          ")
+          sed -i -E "s/\"${{ matrix.name }}[<>=!~ ][^\"]*\"/\"${{ matrix.name }}==${exact}\"/" pyproject.toml
+          uv lock
+
+      - name: Run smoke test for ${{ matrix.name }}
+        if: steps.guard.outputs.skip != 'true' && steps.add.outcome == 'success'
+        id: smoke
+        continue-on-error: true
+        run: |
+          test_path="${{ matrix.smoke_test }}"
+          if [ -n "$test_path" ] && [ -f "$test_path" ]; then
+            uv run --all-groups python -P "$test_path"
+          else
+            uv run --all-groups python -P -c "import ${{ matrix.name }}"
+          fi
+
+      - name: Remove ${{ matrix.name }} from tracked candidates
+        if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success'
+        run: |
+          tmp=$(mktemp)
+          jq --arg name "${{ matrix.name }}" 'map(select(.name != $name))' .github/dep-probes/candidates.json > "$tmp"
+          mv "$tmp" .github/dep-probes/candidates.json
+
+      - name: Create pull request
+        if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          token: ${{ secrets.PAT_FOR_BOTS }}
+          add-paths: |
+            pyproject.toml
+            uv.lock
+            .github/dep-probes/candidates.json
+          commit-message: "build(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
+          title: "build(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
+          body: |
+            Automated compatibility probe for `${{ matrix.name }}` succeeded: dependency
+            resolution and the smoke test both passed against the currently pinned stack.
+            Review the resolved version in pyproject.toml/uv.lock before merging.
+
+
+            This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`,
+            since it will no longer be excluded once merged.
+
+            Follow-up (not automated): fold `${{ matrix.smoke_test }}` into the main
+            "Smoke test - ML libraries" step in build.yml, so future ${{ matrix.name }}
+            version bumps get the same regression coverage as the rest of the ML stack.
+
+          branch: enable-dep-${{ matrix.name }}
+          labels: dependencies,compatibility-probe
+          delete-branch: true
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ${{ matrix.name }}"
+            if [ "${{ steps.guard.outputs.skip }}" = "true" ]; then
+              echo "already enabled in pyproject.toml - remove it from candidates.json"
+            elif [ "${{ steps.add.outcome }}" != "success" ]; then
+              echo "resolution failed - still incompatible"
+            elif [ "${{ steps.smoke.outcome }}" != "success" ]; then
+              echo "resolution OK, smoke test failed"
+            else
+              echo "compatible - PR opened (enable-dep-${{ matrix.name }})"
+            fi
+            note="${{ matrix.note }}"
+            if [ -n "$note" ]; then
+              echo "note: $note"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Informational only: lists outdated packages as a warning in the job log.
+  outdated-report:
+    needs: versions
+    if: github.event_name != 'workflow_dispatch' || contains(inputs.checks, 'outdated')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: ${{ needs.versions.outputs.python_version }}
+
+      - name: Sync environment
+        run: uv sync --all-groups --locked --python ${{ needs.versions.outputs.python_version }}
+
+      - name: Check outdated packages
+        run: |
+          outdated=$(uv pip list --outdated)
+          if [ -n "$outdated" ]; then
+            echo "$outdated"
+            echo "::warning::Found outdated packages, see job log"
+          else
+            echo "All packages up to date"
+          fi
