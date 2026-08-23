@@ -77,17 +77,21 @@ jobs:
         run: |
           raw="${{ github.event_name == 'workflow_dispatch' && inputs.checks || '' }}"
           if [ -z "$raw" ]; then
-            echo "checks=python,uv,intermediate,probes,outdated" >> "$GITHUB_OUTPUT"
+            raw_expanded="python,uv,intermediate,probes,outdated"
           else
-            echo "checks=$raw" >> "$GITHUB_OUTPUT"
+            raw_expanded="$raw"
           fi
+          echo "checks=$raw_expanded" >> "$GITHUB_OUTPUT"
           # Dynamic matrix for bump-base: only the selected components become
           # matrix entries. The matrix context is unavailable in job-level if,
           # so filtering happens here instead of a job condition.
+          # $checks here is the OUTPUT name, not a shell variable - under
+          # set -u referencing it crashes ("unbound variable"). Use the
+          # normalized value we already hold in $raw_expanded instead.
           comp_json="["
           first=1
           for c in python uv; do
-            case ",$raw," in
+            case ",$raw_expanded," in
               *",$c,"*)
                 if [ $first -eq 0 ]; then comp_json="$comp_json,"; fi
                 comp_json="$comp_json{\"component\":\"$c\"}"
@@ -123,10 +127,13 @@ jobs:
 
   # Base image freshness: one job with a component matrix replaces the two
   # near-identical check-python-version / check-uv-version workflows.
-  # Selection uses needs.versions.outputs.checks (normalized csv); a
-  # non-selected component skips the whole matrix leg via job-level if.
+  # A matrix with zero entries is a hard strategy error in GitHub Actions
+  # (same constraint the probe job guards against), so when no base-image
+  # check is selected the components output is "[]" and this job is gated
+  # by an if on that value instead.
   bump-base:
     needs: versions
+    if: needs.versions.outputs.components != '[]'
     strategy:
       fail-fast: false
       matrix:
