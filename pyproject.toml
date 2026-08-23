@@ -1,6 +1,6 @@
 [project]
 name = "jlpe"
-version = "3.13.15+slim-trixie.202608221618"
+version = "3.13.15+slim-trixie.202608221719"
 description = "Portable JupyterLab environment that simplifies setup and ensures consistency across different platforms."
 authors = [{ name = "Seeeaaa" }]
 readme = "README.md"
@@ -49,9 +49,7 @@ visualization = [
     "seaborn==0.13.2",
     "plotly==6.9.0",
     "colorcet==3.2.1",
-    # "bokeh==3.10.0",  # comes back via dask extras if ever needed; removed as unused
     "geopandas==1.1.4",
-    # "kaleido==1.3.0",  # plotly -> PNG export; unused recently, re-add if needed (note: kaleido 1.x also needs Chrome in the image)
 ]
 
 jupyterlab = [
