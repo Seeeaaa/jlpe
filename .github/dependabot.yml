@@ -1,4 +1,7 @@
 version: 2
+# Any change to this file triggers an immediate out-of-band Dependabot
+# update run for every ecosystem listed below. Kept as a recovery hook:
+# editing this file wakes the daily schedule if it ever stalls silently.
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
