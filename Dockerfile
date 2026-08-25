@@ -1,5 +1,5 @@
 FROM ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 AS uv
-FROM python:3.13.15-slim-trixie@sha256:afd91e25d0d1b40e4c92bf716154ec3c4a9f0de1ce2a5c3663007fb6918eaf9c
+FROM python:3.13.15-slim-trixie@sha256:7e3a6aca9d74f93cca21a91d86a8dad8c34749afd5b4a98ee481c9c47b9f5ed4
 
 # OCI image metadata. VERSION/REVISION/CREATED are passed by build.yml from
 # the stamped pyproject version, commit sha and UTC date; defaults stay empty
