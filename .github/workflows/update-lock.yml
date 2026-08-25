@@ -30,9 +30,27 @@ jobs:
           # On a pull_request run (this workflow file itself changed, e.g. a
           # Dependabot action-version bump), the commit step below is skipped
           # via `if:`, so this is read-only verification only -- the default
-          # GITHUB_TOKEN is enough and doesn't depend on PAT_FOR_BOTS being
-          # available under Dependabot secrets for this event type specifically.
-          token: ${{ github.event_name == 'pull_request' && secrets.GITHUB_TOKEN || secrets.PAT_FOR_BOTS }}
+          # GITHUB_TOKEN is enough.
+          #
+          # Dependabot branch pushes (dependabot[bot] as head commit author)
+          # receive NO custom repository secrets at all: GitHub passes an
+          # empty string for PAT_FOR_BOTS there, and checkout used to die
+          # with "could not read Username". Fall back to GITHUB_TOKEN in
+          # that case; the "Bot PAT available" step detects it and the
+          # commit step degrades to verification-only (see its `if:`).
+          token: ${{ github.event_name == 'pull_request' && secrets.GITHUB_TOKEN || secrets.PAT_FOR_BOTS || secrets.GITHUB_TOKEN }}
+
+      - name: Bot PAT available
+        id: pat
+        run: |
+          # secrets.* cannot be read inside `if:` expressions portably, so
+          # materialize availability as a step output once.
+          if [ -n "${{ secrets.PAT_FOR_BOTS }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::PAT_FOR_BOTS not provided for this event type (expected on dependabot[bot] pushes) -- running verification-only, no auto-commit"
+          fi
 
       - name: Extract uv version from Dockerfile
         id: uvver
@@ -48,8 +66,15 @@ jobs:
       - name: Regenerate uv.lock
         run: uv lock
 
+      # Auto-commit requires the PAT: with GITHUB_TOKEN the push would not
+      # re-trigger build.yml (pull_request/synchronize) on this branch and
+      # would also interfere with Dependabot's branch management. When the
+      # PAT is absent (dependabot[bot] pushes), report the status green so
+      # the required check never blocks those PRs; any real lock drift on
+      # main is picked up by the nightly check-upstream intermediate-deps
+      # job instead.
       - name: Commit uv.lock if changed
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.pat.outputs.available == 'true'
         uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7
         with:
           commit_message: "chore: regenerate uv.lock"
