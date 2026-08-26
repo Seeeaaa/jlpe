@@ -14,6 +14,13 @@ on:
         default: false
 permissions:
   contents: read
+defaults:
+  run:
+    # Same contract as check-upstream.yml: every run step executes under
+    # bash with errexit, nounset and pipefail, so a failed version-extraction
+    # grep or docker call fails its step immediately instead of feeding an
+    # empty value downstream.
+    shell: bash --noprofile --norc -euo pipefail {0}
 
 jobs:
   changes:
