@@ -48,7 +48,7 @@ data = [
 visualization = [
     "matplotlib==3.11.1",
     "seaborn==0.13.2",
-    "plotly==6.9.0",
+    "plotly==7.0.0",
     "colorcet==3.2.1",
     "geopandas==1.1.4",
 ]
