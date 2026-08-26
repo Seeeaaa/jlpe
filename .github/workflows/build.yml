@@ -140,7 +140,35 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pyproject.toml uv.lock
           git commit -m "$msg"
-          git push
+
+          # Push with a bounded rebase retry: two merges to main landing
+          # within the same workflow window are normal here (the second one
+          # triggers its own stamp-date run), and a failing push then kills
+          # this run's whole build chain with non-fast-forward. Explicit
+          # HEAD:main refspec so the push does not rely on the upstream
+          # tracking configuration actions/checkout happens to create.
+          # The rebase is safe for a bot-authored, single-purpose commit:
+          # if main moved because another stamp landed, our version bump is
+          # regenerated on top of it; if it moved for other reasons, worst
+          # case the diff check below sees no changes and the run degrades
+          # to build-only.
+          pushed=false
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              pushed=true
+              break
+            fi
+            echo "push attempt ${attempt} failed (main probably moved), rebasing and retrying"
+            git fetch origin main
+            git rebase origin/main || {
+              echo "FATAL: rebase onto updated main failed during race retry."
+              exit 1
+            }
+          done
+          if [ "$pushed" != "true" ]; then
+            echo "FATAL: could not push stamp commit after 3 attempts."
+            exit 1
+          fi
 
       - name: Resolve final SHA
         id: resolve
