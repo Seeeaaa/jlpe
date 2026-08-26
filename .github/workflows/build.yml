@@ -218,6 +218,12 @@ jobs:
         id: date
         run: echo "date=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
+      - name: Get UTC timestamp for image CREATED label
+        id: created
+        # RFC 3339 with seconds precision; the date-only variant used
+        # before stamped every image as built at exactly midnight UTC.
+        run: echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build image
         uses: docker/build-push-action@v7
         with:
@@ -233,7 +239,7 @@ jobs:
             APT_BUST=${{ steps.date.outputs.date }}
             VERSION=${{ steps.fullver.outputs.tag }}
             REVISION=${{ steps.ref.outputs.sha }}
-            CREATED=${{ steps.date.outputs.date }}T00:00:00Z
+            CREATED=${{ steps.created.outputs.timestamp }}
           tags: |
             vyxan/jlpe_image:${{ steps.ref.outputs.sha }}
             vyxan/jlpe_image:${{ steps.fullver.outputs.tag }}
