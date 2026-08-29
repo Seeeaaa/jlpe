@@ -13,14 +13,24 @@ permissions:
 jobs:
   update-branches:
     runs-on: ubuntu-latest
-    # permissions:
-    #   pull-requests: write
-    #   contents: write
+    permissions:
+      pull-requests: write
+      contents: write
     steps:
+      - name: Bot PAT available
+        id: pat
+        run: |
+          if [ -n "${{ secrets.PAT_FOR_BOTS }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::PAT_FOR_BOTS not provided for this event type -- merge will fail"
+          fi
+
       - name: Update open PR branches to latest main
         uses: actions/github-script@v9
         with:
-          github-token: ${{ github.event_name == 'pull_request' && secrets.GITHUB_TOKEN || secrets.PAT_FOR_BOTS }}
+          github-token: ${{ github.event_name == 'pull_request' && secrets.GITHUB_TOKEN || secrets.PAT_FOR_BOTS || secrets.GITHUB_TOKEN }}
           script: |
             const isTestRun = context.eventName === "pull_request";
             const prs = await github.rest.pulls.list({
