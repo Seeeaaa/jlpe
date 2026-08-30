@@ -291,6 +291,30 @@ jobs:
           path: jlpe-image.tar
           retention-days: 1
 
+      - name: Scan image for vulnerabilities
+        # Report-only: severity filtering decides what is surfaced, but the
+        # step never fails the build, so the unattended stamp-date pipeline
+        # stays zero-touch. Findings reach a human via the SARIF upload below
+        # (Security tab), covering the surface Dependabot alerts do not: the
+        # OS layer (base image + apt packages) and the uv-synced Python
+        # site-packages in one assembled-image scan.
+        # Third-party action pinned to a full commit SHA per AGENTS.md.
+        # v0.36.0 is the first post-supply-chain release (the Mar 2026 attack
+        # force-pushed 76/77 historical tags); this SHA is the signed,
+        # GitHub-verified commit for the v-prefix tag.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: vyxan/jlpe_image:${{ steps.ref.outputs.sha }}
+          severity: HIGH,CRITICAL
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
   smoke-test:
     needs: build
     if: always() && needs.build.result == 'success'
