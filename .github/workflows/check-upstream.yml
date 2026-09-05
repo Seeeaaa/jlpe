@@ -421,20 +421,14 @@ jobs:
             pyproject.toml
             uv.lock
             .github/dep-probes/candidates.json
-          commit-message: "build(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
-          title: "build(deps): re-enable ${{ matrix.name }} (compatibility probe passed)"
+          commit-message: "build(deps): enable ${{ matrix.name }} (compatibility probe passed)"
+          title: "build(deps): enable ${{ matrix.name }} (compatibility probe passed)"
           body: |
-            Automated compatibility probe for `${{ matrix.name }}` succeeded: dependency
-            resolution and the smoke test both passed against the currently pinned stack.
-            Review the resolved version in pyproject.toml/uv.lock before merging.
+            Automated compatibility probe for `${{ matrix.name }}` succeeded: dependency resolution and the smoke test both passed against the currently pinned stack. Review the resolved version in pyproject.toml/uv.lock before merging.
 
+            This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`, since it will no longer be excluded once merged.
 
-            This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`,
-            since it will no longer be excluded once merged.
-
-            Follow-up (not automated): fold `${{ matrix.smoke_test }}` into the main
-            "Smoke test - ML libraries" step in build.yml, so future ${{ matrix.name }}
-            version bumps get the same regression coverage as the rest of the ML stack.
+            Follow-up (not automated): fold `${{ matrix.smoke_test }}` into the main "Smoke test - ML libraries" step in build.yml, so future ${{ matrix.name }} version bumps get the same regression coverage as the rest of the ML stack.
 
           branch: enable-dep-${{ matrix.name }}
           labels: dependencies,compatibility-probe
