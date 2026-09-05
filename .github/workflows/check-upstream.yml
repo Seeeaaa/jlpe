@@ -319,6 +319,13 @@ jobs:
           only="${{ inputs.probe_only }}"
           if [ -n "$only" ]; then
             matrix=$(jq -c --arg only "$only" '[.[] | select(.name == $only)]' .github/dep-probes/candidates.json)
+            # Fail loudly instead of silently producing an empty matrix -- an empty
+            # match here almost always means a typo/whitespace in probe_only, not
+            # an intentional "nothing to probe" state.
+            if [ "$matrix" = "[]" ]; then
+              echo "::error::probe_only='$only' matched no entry in candidates.json"
+              exit 1
+            fi
           else
             matrix=$(jq -c . .github/dep-probes/candidates.json)
           fi
