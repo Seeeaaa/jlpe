@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "name": "statsforecast",
+    "group": "ml",
+    "smoke_test": ".github/dep-probes/tests/check_statsforecast.py",
+    "note": "Nixtla statistical forecasting suite; previously excluded pending compatibility check against current pinned stack"
+  }
+]
