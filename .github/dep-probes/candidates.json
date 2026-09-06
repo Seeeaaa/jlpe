@@ -1,9 +1,1 @@
-[
-  {
-    "name": "mlflow",
-    "group": "ml",
-    "version": ">=3.0",
-    "smoke_test": ".github/dep-probes/tests/check_mlflow.py",
-    "note": "excluded: pyarrow/protobuf upper bounds incompatible with current pins"
-  }
-]
+[]
