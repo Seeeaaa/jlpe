@@ -4,5 +4,11 @@
     "group": "ml",
     "smoke_test": ".github/dep-probes/tests/check_statsforecast.py",
     "note": "Nixtla statistical forecasting suite; previously excluded pending compatibility check against current pinned stack"
+  },
+  {
+    "name": "mlforecast",
+    "group": "ml",
+    "smoke_test": ".github/dep-probes/tests/check_mlforecast.py",
+    "note": "Nixtla ML-based forecasting; previously excluded pending compatibility check against current pinned stack"
   }
 ]
