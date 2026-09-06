@@ -412,6 +412,73 @@ jobs:
           jq --arg name "${{ matrix.name }}" 'map(select(.name != $name))' .github/dep-probes/candidates.json > "$tmp"
           mv "$tmp" .github/dep-probes/candidates.json
 
+      - name: Fold ${{ matrix.name }} smoke test into build.yml
+        if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success'
+        run: |
+          # Fold the probe's own smoke test into build.yml so future version
+          # bumps of this package get the same regression coverage as the rest
+          # of the ML stack, without a human follow-up. The probe script body
+          # becomes a new inline "- name: Smoke test - <name>" step appended
+          # after the existing "Smoke test - ML libraries" step. Idempotent: a
+          # second pass sees the marker and leaves build.yml untouched.
+          python - "${{ matrix.name }}" "${{ matrix.smoke_test }}" <<'PYEOF'
+          import sys
+
+          name = sys.argv[1]
+          test_path = sys.argv[2]
+          marker = f"Smoke test - {name}"
+
+          with open(".github/workflows/build.yml") as f:
+              build = f.read()
+
+          if marker in build:
+              print(f"{marker} already present in build.yml, skipping fold")
+              sys.exit(0)
+
+          if not test_path:
+              print("no smoke_test path recorded, skipping fold")
+              sys.exit(0)
+
+          with open(test_path) as f:
+              body = f.read().rstrip("\n")
+
+          # Ground the new step at 6-space indent (the - name: / run: level),
+          # with the heredoc body at 10-space indent, matching the surrounding
+          # steps. The body is already valid Python; only its outer indent is
+          # added per line. YAML strips the common block-scalar indentation
+          # before the shell runs, so uniform indentation renders as a valid
+          # top-level script once executed.
+          lines = body.split("\n")
+          indented = "\n".join(("          " + ln if ln else ln) for ln in lines)
+
+          step = (
+              "      - name: "
+              + marker
+              + "\n"
+              + "        run: |\n"
+              + "          docker exec -i test_container python - <<'EOF'\n"
+              + indented
+              + "\n"
+              + "          EOF\n"
+          )
+
+          # Insert right after the ML libraries step's terminating EOF so the
+          # new test sits with the rest of the ML smoke tests. The ML step is
+          # the first heredoc block; anchor on its closing EOF preceded by the
+          # catboost marker line, which is unique in the file.
+          anchor = '          print("catboost: CUDA build marker present")\n          EOF\n'
+          if anchor not in build:
+              print("::error::could not locate ML libraries step anchor in build.yml")
+              sys.exit(1)
+
+          build = build.replace(anchor, anchor + "\n" + step, 1)
+
+          with open(".github/workflows/build.yml", "w") as f:
+              f.write(build)
+
+          print(f"folded {test_path} into build.yml as '{marker}'")
+          PYEOF
+
       - name: Create pull request
         if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
@@ -421,14 +488,13 @@ jobs:
             pyproject.toml
             uv.lock
             .github/dep-probes/candidates.json
+            .github/workflows/build.yml
           commit-message: "build(deps): enable ${{ matrix.name }} (compatibility probe passed)"
           title: "build(deps): enable ${{ matrix.name }} (compatibility probe passed)"
           body: |
             Automated compatibility probe for `${{ matrix.name }}` succeeded: dependency resolution and the smoke test both passed against the currently pinned stack. Review the resolved version in pyproject.toml/uv.lock before merging.
 
-            This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`, since it will no longer be excluded once merged.
-
-            Follow-up (not automated): fold `${{ matrix.smoke_test }}` into the main "Smoke test - ML libraries" step in build.yml, so future ${{ matrix.name }} version bumps get the same regression coverage as the rest of the ML stack.
+            This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`, since it will no longer be excluded once merged, and folds `${{ matrix.smoke_test }}` into the main "Smoke test - ML libraries" step in build.yml so future ${{ matrix.name }} version bumps get the same regression coverage as the rest of the ML stack.
 
           branch: enable-dep-${{ matrix.name }}
           labels: dependencies,compatibility-probe
