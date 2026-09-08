@@ -428,10 +428,21 @@ jobs:
           test_path = sys.argv[2]
           marker = f"Smoke test - {name}"
 
-          with open(".github/workflows/build.yml") as f:
+          # Read in binary so the file's line endings survive the fold. The
+          # text-mode open used before translated CRLF to LF on the Linux
+          # runner and rewrote the whole file with bare newlines, which turned
+          # every line into a diff and caused spurious merge conflicts on
+          # subsequent probe PRs.
+          with open(".github/workflows/build.yml", "rb") as f:
               build = f.read()
 
-          if marker in build:
+          # Detect the file's line ending so the inserted step and its anchor
+          # match whatever convention the file already uses. Default to LF when
+          # the byte sniffing is inconclusive.
+          eol = b"\r\n" if build.count(b"\r\n") >= build.count(b"\n") - build.count(b"\r\n") else b"\n"
+          build_text = build.decode()
+
+          if marker in build_text:
               print(f"{marker} already present in build.yml, skipping fold")
               sys.exit(0)
 
@@ -465,15 +476,20 @@ jobs:
           # Insert right after the ML libraries step's terminating EOF so the
           # new test sits with the rest of the ML smoke tests. The ML step is
           # the first heredoc block; anchor on its closing EOF preceded by the
-          # catboost marker line, which is unique in the file.
-          anchor = '          print("catboost: CUDA build marker present")\n          EOF\n'
+          # catboost marker line, which is unique in the file. The anchor text
+          # is joined with the detected eol so it matches either convention.
+          anchor = eol.join([
+              b'          print("catboost: CUDA build marker present")',
+              b"          EOF",
+              b"",
+          ])
           if anchor not in build:
               print("::error::could not locate ML libraries step anchor in build.yml")
               sys.exit(1)
 
-          build = build.replace(anchor, anchor + "\n" + step, 1)
+          build = build.replace(anchor, anchor + eol + step.replace("\n", eol.decode()).encode(), 1)
 
-          with open(".github/workflows/build.yml", "w") as f:
+          with open(".github/workflows/build.yml", "wb") as f:
               f.write(build)
 
           print(f"folded {test_path} into build.yml as '{marker}'")
