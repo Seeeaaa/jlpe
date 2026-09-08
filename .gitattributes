@@ -1,0 +1,19 @@
+# Enforce LF line endings repo-wide. Several files drifted to CRLF when
+# authored on Windows (build.yml, update-pr-branches.yml, dependabot.yml);
+# this pins every text file to LF so checkout and commit never reintroduce
+# CRLF. No .gitignore here by design - that file is intentionally empty and
+# acts as a tripwire (see AGENTS.md).
+* text=auto eol=lf
+
+# Binary files must not be line-ending normalized.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.so binary
+*.whl binary
