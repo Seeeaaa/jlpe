@@ -393,6 +393,9 @@ jobs:
       - name: Smoke test - visualization stack
         run: |
           docker exec -i test_container python - < tests/smoke/test_visualization.py
+      - name: Smoke test - mlforecast
+        run: |
+          docker exec -i test_container python - < tests/smoke/test_mlforecast.py
       - name: Smoke test - ccxt
         run: |
           docker exec -i test_container python - < tests/smoke/test_ccxt.py
