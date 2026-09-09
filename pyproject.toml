@@ -45,6 +45,7 @@ data = [
     "pyarrow==25.0.1",
     "sqlalchemy==2.0.52",
     "psycopg[binary,pool]==3.3.5",
+    "narwhals==2.26.0",
 ]
 
 visualization = [

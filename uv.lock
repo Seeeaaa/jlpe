@@ -1091,6 +1091,7 @@ source = { virtual = "." }
 data = [
     { name = "dask" },
     { name = "duckdb" },
+    { name = "narwhals" },
     { name = "numpy" },
     { name = "pandas", extra = ["performance"] },
     { name = "polars" },
@@ -1139,6 +1140,7 @@ visualization = [
 data = [
     { name = "dask", specifier = "==2026.8.0" },
     { name = "duckdb", specifier = "==1.5.5" },
+    { name = "narwhals", specifier = "==2.26.0" },
     { name = "numpy", specifier = "==2.5.3" },
     { name = "pandas", extras = ["performance"], specifier = "==3.0.5" },
     { name = "polars", specifier = "==1.44.1" },

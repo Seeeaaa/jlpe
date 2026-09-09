@@ -393,6 +393,9 @@ jobs:
       - name: Smoke test - visualization stack
         run: |
           docker exec -i test_container python - < tests/smoke/test_visualization.py
+      - name: Smoke test - narwhals
+        run: |
+          docker exec -i test_container python - < tests/smoke/test_narwhals.py
 
       - name: Smoke test - JupyterLab starts and kernel is registered
         run: |
