@@ -412,87 +412,71 @@ jobs:
           jq --arg name "${{ matrix.name }}" 'map(select(.name != $name))' .github/dep-probes/candidates.json > "$tmp"
           mv "$tmp" .github/dep-probes/candidates.json
 
-      - name: Fold ${{ matrix.name }} smoke test into build.yml
+      - name: Fold ${{ matrix.name }} smoke test into tests/smoke
         if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success'
         run: |
-          # Fold the probe's own smoke test into build.yml so future version
-          # bumps of this package get the same regression coverage as the rest
-          # of the ML stack, without a human follow-up. The probe script body
-          # becomes a new inline "- name: Smoke test - <name>" step appended
-          # after the existing "Smoke test - ML libraries" step. Idempotent: a
-          # second pass sees the marker and leaves build.yml untouched.
-          python - "${{ matrix.name }}" "${{ matrix.smoke_test }}" <<'PYEOF'
+          # Smoke tests live as standalone scripts under tests/smoke/, one per
+          # library, and build.yml runs each by piping the file into the test
+          # container. So "folding" a probe into permanent coverage is just a
+          # file copy plus a one-line build.yml step -- no fragile anchor
+          # matching against inline heredocs. The probe script is already a
+          # standalone module with a main() guard, so it drops into
+          # tests/smoke/ unchanged (renamed to match the test_<name>.py
+          # convention). Idempotent: a second pass sees the target present and
+          # leaves both files untouched.
+          test_path="${{ matrix.smoke_test }}"
+          name="${{ matrix.name }}"
+          target="tests/smoke/test_${name}.py"
+
+          if [ -z "$test_path" ]; then
+            echo "no smoke_test path recorded, skipping fold"
+            exit 0
+          fi
+          if [ ! -f "$test_path" ]; then
+            echo "::error::smoke test script not found: $test_path"
+            exit 1
+          fi
+          if [ -f "$target" ]; then
+            echo "$target already present, skipping fold"
+            exit 0
+          fi
+
+          mkdir -p tests/smoke
+          cp "$test_path" "$target"
+
+          # Append a one-line smoke-test step after the last existing
+          # tests/smoke step in build.yml. The anchor is the visualization
+          # step, the final Python script step before the JupyterLab checks.
+          # This keeps the fragile insertion minimal and self-describing.
+          python - "$name" <<'PYEOF'
           import sys
 
           name = sys.argv[1]
-          test_path = sys.argv[2]
           marker = f"Smoke test - {name}"
-
-          # Read in binary so the file's line endings survive the fold. The
-          # text-mode open used before translated CRLF to LF on the Linux
-          # runner and rewrote the whole file with bare newlines, which turned
-          # every line into a diff and caused spurious merge conflicts on
-          # subsequent probe PRs.
-          with open(".github/workflows/build.yml", "rb") as f:
-              build = f.read()
-
-          # Detect the file's line ending so the inserted step and its anchor
-          # match whatever convention the file already uses. Default to LF when
-          # the byte sniffing is inconclusive.
-          eol = b"\r\n" if build.count(b"\r\n") >= build.count(b"\n") - build.count(b"\r\n") else b"\n"
-          build_text = build.decode()
-
-          if marker in build_text:
-              print(f"{marker} already present in build.yml, skipping fold")
-              sys.exit(0)
-
-          if not test_path:
-              print("no smoke_test path recorded, skipping fold")
-              sys.exit(0)
-
-          with open(test_path) as f:
-              body = f.read().rstrip("\n")
-
-          # Ground the new step at 6-space indent (the - name: / run: level),
-          # with the heredoc body at 10-space indent, matching the surrounding
-          # steps. The body is already valid Python; only its outer indent is
-          # added per line. YAML strips the common block-scalar indentation
-          # before the shell runs, so uniform indentation renders as a valid
-          # top-level script once executed.
-          lines = body.split("\n")
-          indented = "\n".join(("          " + ln if ln else ln) for ln in lines)
-
           step = (
-              "      - name: "
-              + marker
-              + "\n"
+              "      - name: " + marker + "\n"
               + "        run: |\n"
-              + "          docker exec -i test_container python - <<'EOF'\n"
-              + indented
-              + "\n"
-              + "          EOF\n"
+              + f"          docker exec -i test_container python - < tests/smoke/test_{name}.py\n"
+          )
+          anchor = (
+              "        run: |\n"
+              "          docker exec -i test_container python - < tests/smoke/test_visualization.py\n"
           )
 
-          # Insert right after the ML libraries step's terminating EOF so the
-          # new test sits with the rest of the ML smoke tests. The ML step is
-          # the first heredoc block; anchor on its closing EOF preceded by the
-          # catboost marker line, which is unique in the file. The anchor text
-          # is joined with the detected eol so it matches either convention.
-          anchor = eol.join([
-              b'          print("catboost: CUDA build marker present")',
-              b"          EOF",
-              b"",
-          ])
+          with open(".github/workflows/build.yml") as f:
+              build = f.read()
+
+          if marker in build:
+              print(f"{marker} already present in build.yml, skipping step insert")
+              sys.exit(0)
           if anchor not in build:
-              print("::error::could not locate ML libraries step anchor in build.yml")
+              print("::error::could not locate visualization step anchor in build.yml")
               sys.exit(1)
 
-          build = build.replace(anchor, anchor + eol + step.replace("\n", eol.decode()).encode(), 1)
-
-          with open(".github/workflows/build.yml", "wb") as f:
+          build = build.replace(anchor, anchor + step, 1)
+          with open(".github/workflows/build.yml", "w") as f:
               f.write(build)
-
-          print(f"folded {test_path} into build.yml as '{marker}'")
+          print(f"folded tests/smoke/test_{name}.py and inserted '{marker}' step")
           PYEOF
 
       - name: Create pull request
@@ -505,12 +489,13 @@ jobs:
             uv.lock
             .github/dep-probes/candidates.json
             .github/workflows/build.yml
+            tests/smoke
           commit-message: "build(deps): enable ${{ matrix.name }} (compatibility probe passed)"
           title: "build(deps): enable ${{ matrix.name }} (compatibility probe passed)"
           body: |
             Automated compatibility probe for `${{ matrix.name }}` succeeded: dependency resolution and the smoke test both passed against the currently pinned stack. Review the resolved version in pyproject.toml/uv.lock before merging.
 
-            This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`, since it will no longer be excluded once merged, and folds `${{ matrix.smoke_test }}` into the main "Smoke test - ML libraries" step in build.yml so future ${{ matrix.name }} version bumps get the same regression coverage as the rest of the ML stack.
+            This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`, since it will no longer be excluded once merged, and folds `${{ matrix.smoke_test }}` into `tests/smoke/` with a matching build.yml step so future ${{ matrix.name }} version bumps get the same regression coverage as the rest of the ML stack.
 
           branch: enable-dep-${{ matrix.name }}
           labels: dependencies,compatibility-probe

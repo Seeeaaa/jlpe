@@ -1,4 +1,4 @@
-"""Minimal compatibility smoke test for statsforecast.
+"""Smoke test for statsforecast.
 
 Exercises the real StatsForecast API end-to-end: instantiate a forecaster
 with two models (AutoETS + a seasonal naive), fit on a long-format panel
