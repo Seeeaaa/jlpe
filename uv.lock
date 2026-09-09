@@ -1157,6 +1157,7 @@ ml = [
     { name = "catboost" },
     { name = "lightgbm" },
     { name = "mlflow" },
+    { name = "mlforecast" },
     { name = "optuna" },
     { name = "prophet" },
     { name = "scikit-learn" },
@@ -1207,6 +1208,7 @@ ml = [
     { name = "catboost", specifier = "==1.2.10" },
     { name = "lightgbm", specifier = "==4.7.0" },
     { name = "mlflow", specifier = "==3.16.0" },
+    { name = "mlforecast", specifier = "==1.0.2" },
     { name = "optuna", specifier = "==5.0.0" },
     { name = "prophet", specifier = "==1.4.0" },
     { name = "scikit-learn", specifier = "==1.9.0" },
@@ -1726,6 +1728,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1e/0c/ca806be05530ffd01d428e89b1fea930c70844d411f4a7b917ad36c7de0f/mlflow_tracing-3.16.0.tar.gz", hash = "sha256:2b7c8ec19233868b965b141dd3c20f92e5bbdcdaf90f41ae1d2e6b6d1c04e785", size = 1524598, upload-time = "2026-09-04T05:01:00.706Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d3/e4/486d48d96fcb3957f2811e34d17fa21c7d3451eb4b41231832c9f05b6959/mlflow_tracing-3.16.0-py3-none-any.whl", hash = "sha256:383b920d5421f8f596a73bbc698f065ac62c4277146d2bdb2352096ec528bcb2", size = 1811849, upload-time = "2026-09-04T05:00:58.786Z" },
+]
+
+[[package]]
+name = "mlforecast"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cloudpickle" },
+    { name = "coreforecast" },
+    { name = "fsspec" },
+    { name = "optuna" },
+    { name = "pandas" },
+    { name = "scikit-learn" },
+    { name = "utilsforecast" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/00/2f/520a1428cf01ed0facb2358d8d5972812d2b03b84a9d87de8b7fd9b6b8b1/mlforecast-1.0.2.tar.gz", hash = "sha256:a24f8e04e3590aad7bd037908cdb7b2cfbf295781cd4c8ff087b332968155624", size = 72227, upload-time = "2025-02-18T18:28:57.187Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/4e/3886fcd04d743ddc80819f50b05b4e0c6b21168a598ffe115c08d9c20466/mlforecast-1.0.2-py3-none-any.whl", hash = "sha256:158553b08a526abfe1b2feed175e0a228a555e576948c20260a36f8c7a1d0b7c", size = 72405, upload-time = "2025-02-18T18:28:54.507Z" },
 ]
 
 [[package]]
