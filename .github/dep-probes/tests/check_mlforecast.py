@@ -30,7 +30,7 @@ def main() -> None:
     df = make_panel(n_series=2, n_periods=60)
 
     models = [LinearRegression(), LinearRegression()]
-    mlf = MLForecast(models=models, freq="D", lags=[1, 7], lag_transforms={1: np.mean})
+    mlf = MLForecast(models=models, freq="D", lags=[1, 7], lag_transforms={1: [np.mean]})
     mlf.fit(df)
 
     h = 5
