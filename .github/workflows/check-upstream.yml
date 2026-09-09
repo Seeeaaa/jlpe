@@ -418,12 +418,14 @@ jobs:
           # Smoke tests live as standalone scripts under tests/smoke/, one per
           # library, and build.yml runs each by piping the file into the test
           # container. So "folding" a probe into permanent coverage is just a
-          # file copy plus a one-line build.yml step -- no fragile anchor
+          # move plus a one-line build.yml step -- no fragile anchor
           # matching against inline heredocs. The probe script is already a
-          # standalone module with a main() guard, so it drops into
+          # standalone module with a main() guard, so it moves into
           # tests/smoke/ unchanged (renamed to match the test_<name>.py
-          # convention). Idempotent: a second pass sees the target present and
-          # leaves both files untouched.
+          # convention). git mv (not cp) removes the probe from
+          # .github/dep-probes/tests/ in the same commit, so an enable-dep
+          # PR cannot leave a stale duplicate behind. Idempotent: a second
+          # pass sees the target present and leaves both files untouched.
           test_path="${{ matrix.smoke_test }}"
           name="${{ matrix.name }}"
           target="tests/smoke/test_${name}.py"
@@ -442,7 +444,7 @@ jobs:
           fi
 
           mkdir -p tests/smoke
-          cp "$test_path" "$target"
+          git mv "$test_path" "$target"
 
           # Append a one-line smoke-test step after the last existing
           # tests/smoke step in build.yml. The anchor is the visualization
@@ -488,6 +490,7 @@ jobs:
             pyproject.toml
             uv.lock
             .github/dep-probes/candidates.json
+            .github/dep-probes/tests
             .github/workflows/build.yml
             tests/smoke
           commit-message: "build(deps): enable ${{ matrix.name }} (compatibility probe passed)"
