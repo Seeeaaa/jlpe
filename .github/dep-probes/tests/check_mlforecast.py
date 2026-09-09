@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from mlforecast import MLForecast
+from mlforecast.lag_transforms import ExpandingMean
 
 
 def make_panel(n_series: int, n_periods: int) -> pd.DataFrame:
@@ -30,7 +31,12 @@ def main() -> None:
     df = make_panel(n_series=2, n_periods=60)
 
     models = [LinearRegression(), LinearRegression()]
-    mlf = MLForecast(models=models, freq="D", lags=[1, 7], lag_transforms={1: [np.mean]})
+    # lag_transforms must be mlforecast's own transform objects (or an
+    # @njit-wrapped function), not a raw numpy ufunc: mlforecast applies
+    # transforms inside a numba nopython block, and np.mean is a NumPy 2
+    # _ArrayFunctionDispatcher that numba cannot type (np.mean would raise
+    # "Cannot determine Numba type of numpy._ArrayFunctionDispatcher").
+    mlf = MLForecast(models=models, freq="D", lags=[1, 7], lag_transforms={1: [ExpandingMean()]})
     mlf.fit(df)
 
     h = 5
