@@ -4,5 +4,11 @@
     "group": "ml",
     "smoke_test": ".github/dep-probes/tests/check_mlforecast.py",
     "note": "Nixtla ML-based forecasting; previously excluded pending compatibility check against current pinned stack"
+  },
+  {
+    "name": "narwhals",
+    "group": "data",
+    "smoke_test": ".github/dep-probes/tests/check_narwhals.py",
+    "note": "Zero-dependency dataframe-agnostic compatibility layer; probe checks round-trip against pinned pandas and polars"
   }
 ]
