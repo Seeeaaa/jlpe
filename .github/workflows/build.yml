@@ -138,32 +138,47 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml uv.lock
-          git commit -m "$msg"
 
-          # Push with a bounded rebase retry: two merges to main landing
-          # within the same workflow window are normal here (the second one
-          # triggers its own stamp-date run), and a failing push then kills
-          # this run's whole build chain with non-fast-forward. Explicit
-          # HEAD:main refspec so the push does not rely on the upstream
-          # tracking configuration actions/checkout happens to create.
-          # The rebase is safe for a bot-authored, single-purpose commit:
-          # if main moved because another stamp landed, our version bump is
-          # regenerated on top of it; if it moved for other reasons, worst
-          # case the diff check below sees no changes and the run degrades
-          # to build-only.
+          # Recompute the version date against whatever main is RIGHT NOW and
+          # commit it. Called once before the first push and again on every
+          # failed push, so each retry starts from a clean resync instead of
+          # replaying a stale commit over a moved main.
+          stamp_and_commit() {
+            python_version_full=$(grep -oP '(?<=^FROM python:)[^@\s]+' Dockerfile)
+            prefix="${python_version_full/-/+}"
+            new_version="${prefix}.$(date -u +%Y%m%d%H%M)"
+            sed -i "s/^version = \".*\"/version = \"${new_version}\"/" pyproject.toml
+            uv lock
+            git add pyproject.toml uv.lock
+            git commit -m "$msg"
+          }
+          stamp_and_commit
+
+          # Push with a bounded resync retry. Two merges to main landing
+          # within the same workflow window are normal: both stamp-date jobs
+          # independently edit the same "version = ..." line with a DIFFERENT
+          # date, so a plain git rebase would hit a three-way merge conflict
+          # on that line (both sides changed it from the same base to
+          # different values) and die instead of degrading. So on a failed
+          # push we reset hard to the freshest main and recompute the whole
+          # stamp from scratch -- each attempt starts clean rather than trying
+          # to reconcile two independent calculations of one line.
           pushed=false
           for attempt in 1 2 3; do
             if git push origin HEAD:main; then
               pushed=true
               break
             fi
-            echo "push attempt ${attempt} failed (main probably moved), rebasing and retrying"
-            git fetch origin main
-            git rebase origin/main || {
-              echo "FATAL: rebase onto updated main failed during race retry."
+            echo "push attempt ${attempt} failed (main probably moved), resyncing and recomputing from fresh main"
+            if ! git fetch origin main; then
+              echo "FATAL: could not fetch origin/main during race retry."
+              exit 1
+            fi
+            git reset --hard origin/main || {
+              echo "FATAL: reset --hard onto updated main failed during race retry."
               exit 1
             }
+            stamp_and_commit
           done
           if [ "$pushed" != "true" ]; then
             echo "FATAL: could not push stamp commit after 3 attempts."
