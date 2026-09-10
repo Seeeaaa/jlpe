@@ -76,16 +76,6 @@ jobs:
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}
 
-      - name: Compute new version date
-        run: |
-          python_version_full=$(grep -oP '(?<=^FROM python:)[^@\s]+' Dockerfile)
-          prefix="${python_version_full/-/+}"
-          new_version="${prefix}.$(date -u +%Y%m%d%H%M)"
-          current_version=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml)
-          if [ "$current_version" != "$new_version" ]; then
-            sed -i "s/^version = \".*\"/version = \"${new_version}\"/" pyproject.toml
-          fi
-
       - name: Read uv version from Dockerfile
         id: uvver
         uses: ./.github/actions/read-uv-version
@@ -95,28 +85,7 @@ jobs:
         with:
           version: ${{ steps.uvver.outputs.version }}
 
-      - name: Sync uv.lock
-        # Required, not just tidiness: uv's --locked check treats any change
-        # to `version` in pyproject.toml as making uv.lock stale, even though
-        # `version` has no effect on dependency resolution (confirmed
-        # empirically -- bumping only the version string and running
-        # `uv sync --locked` fails with "lockfile needs to be updated").
-        # Without this step, `RUN uv sync --locked ...` in the Dockerfile
-        # would fail on every date-stamp bump, even with zero dependency
-        # changes.
-        run: uv lock
-
-      - name: Check if anything actually changed
-        id: diff
-        run: |
-          if git diff --quiet -- pyproject.toml uv.lock; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Commit and push
-        if: steps.diff.outputs.changed == 'true'
         run: |
           msg="chore: sync uv.lock and bump image version date [skip build]"
 
@@ -159,15 +128,19 @@ jobs:
           }
           stamp_and_commit
 
-          # Push with a bounded resync retry. Two merges to main landing
-          # within the same workflow window are normal: both stamp-date jobs
-          # independently edit the same "version = ..." line with a DIFFERENT
-          # date, so a plain git rebase would hit a three-way merge conflict
-          # on that line (both sides changed it from the same base to
-          # different values) and die instead of degrading. So on a failed
-          # push we reset hard to the freshest main and recompute the whole
-          # stamp from scratch -- each attempt starts clean rather than trying
-          # to reconcile two independent calculations of one line.
+          # Push with a bounded resync retry. The workflow-level concurrency
+          # group (cancel-in-progress false for push) serializes workflow runs
+          # on main, but it cannot serialize against a push that lands from
+          # OUTSIDE this workflow while a run is mid-flight: another merge to
+          # main (a Dependabot/enable-dep bump, or a second human PR merged in
+          # the same window) can move main between this run's checkout and its
+          # own git push. Both sides then independently edit the same
+          # "version = ..." line with a DIFFERENT date, so a plain git rebase
+          # would hit a three-way merge conflict on that line and die instead
+          # of degrading. So on a failed push we reset hard to the freshest
+          # main and recompute the whole stamp from scratch -- each attempt
+          # starts clean rather than trying to reconcile two independent
+          # calculations of one line.
           pushed=false
           for attempt in 1 2 3; do
             if git push origin HEAD:main; then
