@@ -381,11 +381,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Extract uv version from Dockerfile
+      - name: Read uv version from Dockerfile
         id: uvver
-        run: |
-          version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+' Dockerfile)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/read-uv-version
 
       - name: Build matrix from candidates.json
         id: set
