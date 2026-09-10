@@ -446,10 +446,14 @@ jobs:
           mkdir -p tests/smoke
           git mv "$test_path" "$target"
 
-          # Append a one-line smoke-test step after the last existing
-          # tests/smoke step in build.yml. The anchor is the visualization
-          # step, the final Python script step before the JupyterLab checks.
-          # This keeps the fragile insertion minimal and self-describing.
+          # Insert a one-line smoke-test step just BEFORE the JupyterLab
+          # startup check. That step is structurally the last Python smoke
+          # test before the infra checks (extensions resolve), so it is a
+          # stable anchor regardless of how many library smoke tests have
+          # already been folded in. Anchoring on the visualization step was
+          # fragile: it was only the LAST smoke test when written, and every
+          # later fold (ccxt, narwhals, ...) appended after it, so a new
+          # probe would re-insert into the same mid-chain slot forever.
           python - "$name" <<'PYEOF'
           import sys
 
@@ -461,8 +465,7 @@ jobs:
               + f"          docker exec -i test_container python - < tests/smoke/test_{name}.py\n"
           )
           anchor = (
-              "        run: |\n"
-              "          docker exec -i test_container python - < tests/smoke/test_visualization.py\n"
+              "      - name: Smoke test - JupyterLab starts and kernel is registered\n"
           )
 
           with open(".github/workflows/build.yml") as f:
@@ -472,10 +475,12 @@ jobs:
               print(f"{marker} already present in build.yml, skipping step insert")
               sys.exit(0)
           if anchor not in build:
-              print("::error::could not locate visualization step anchor in build.yml")
+              print("::error::could not locate JupyterLab step anchor in build.yml")
               sys.exit(1)
 
-          build = build.replace(anchor, anchor + step, 1)
+          # Insert BEFORE the anchor so the new smoke test lands at the end
+          # of the library-smoke-test chain, right before the infra checks.
+          build = build.replace(anchor, step + anchor, 1)
           with open(".github/workflows/build.yml", "w") as f:
               f.write(build)
           print(f"folded tests/smoke/test_{name}.py and inserted '{marker}' step")
