@@ -5,7 +5,7 @@ name: Check upstream drift
 #   check-uv-version.yml           -> bump-base (matrix component: uv)
 #   check-intermediate-deps.yml    -> intermediate-deps
 #   check-dependency-probes.yml    -> dependency-probes + probe
-#   check-dependencies-on-push.yml -> outdated-report
+#   check-dependencies-on-push.yml -> (removed; outdated-report dropped later)
 #
 # Ordering: the old files used staggered cron hours (20/21/22) so an earlier
 # check could finish before a later one started. Inside one workflow the
@@ -15,7 +15,7 @@ name: Check upstream drift
 # uv.lock regardless of matrix outcomes.
 #
 # Manual runs: "Run workflow" shows two fields.
-#   checks     - csv subset of python,uv,intermediate,probes,outdated
+#   checks     - csv subset of python,uv,intermediate,probes
 #                (empty = run everything, like the scheduled nightly run)
 #   probe_only - single candidate name for probes; used only when checks
 #                includes "probes" (replaces the old per-workflow input)
@@ -33,7 +33,7 @@ on:
   workflow_dispatch:
     inputs:
       checks:
-        description: "Checks to run: csv from python,uv,intermediate,probes,outdated (empty = all)"
+        description: "Checks to run: csv from python,uv,intermediate,probes (empty = all)"
         required: false
         type: string
       probe_only:
@@ -85,7 +85,7 @@ jobs:
         run: |
           raw="${{ github.event_name == 'workflow_dispatch' && inputs.checks || '' }}"
           if [ -z "$raw" ]; then
-            raw_expanded="python,uv,intermediate,probes,outdated"
+            raw_expanded="python,uv,intermediate,probes"
           else
             raw_expanded="$raw"
           fi
@@ -602,30 +602,3 @@ jobs:
               echo "note: $note"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-
-  # Informational only: lists outdated packages as a warning in the job log.
-  outdated-report:
-    needs: versions
-    if: contains(needs.versions.outputs.checks, 'outdated')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version: ${{ needs.versions.outputs.uv_version }}
-          python-version: ${{ needs.versions.outputs.python_version }}
-
-      - name: Sync environment
-        run: uv sync --all-groups --locked --python ${{ needs.versions.outputs.python_version }}
-
-      - name: Check outdated packages
-        run: |
-          outdated=$(uv pip list --outdated)
-          if [ -n "$outdated" ]; then
-            echo "$outdated"
-            echo "::warning::Found outdated packages, see job log"
-          else
-            echo "All packages up to date"
-          fi
