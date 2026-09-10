@@ -454,7 +454,7 @@ jobs:
          needs.changes.outputs.image == 'true') ||
         (github.event_name == 'workflow_dispatch' &&
          github.ref == 'refs/heads/main' &&
-         github.event.inputs.force_push == 'true')
+         inputs.force_push)
       )
     runs-on: ubuntu-latest
     steps:
