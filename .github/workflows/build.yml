@@ -1,7 +1,14 @@
 name: Build and smoke test (main)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name != 'push' }}
+  # Cancel only superseded PR checks. Push runs on main and manual
+  # workflow_dispatch runs share the same group key (their github.ref is
+  # identical - refs/heads/main) and must serialize, not cancel each other:
+  # a manual force_push=true dispatch landing while a push build is mid-run
+  # would otherwise kill it (with cancel-in-progress true) and could leave
+  # Docker Hub with only a subset of the four tags, or interrupt stamp-date's
+  # retry loop mid-push.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 on:
   push:
     branches: [main]
