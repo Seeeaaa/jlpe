@@ -28,7 +28,7 @@ jobs:
           fi
 
       - name: Update open PR branches to latest main
-        uses: actions/github-script@v9
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           github-token: ${{ github.event_name == 'pull_request' && secrets.GITHUB_TOKEN || secrets.PAT_FOR_BOTS || secrets.GITHUB_TOKEN }}
           script: |
