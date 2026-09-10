@@ -337,16 +337,36 @@ jobs:
               dep = ", ".join(shown) + suffix if shown else "-"
               rows.append((name, old, new, dep))
 
-          print("| package | previous | new | top-level dependents |")
-          print("|---|---|---|---|")
-          for name, old, new, dep in rows:
-              print(f"| `{name}` | {old} | {new} | {dep} |")
+          added = sorted(set(post) - set(pre))
+          removed = sorted(set(pre) - set(post))
+
+          if rows:
+              print("| package | previous | new | top-level dependents |")
+              print("|---|---|---|---|")
+              for name, old, new, dep in rows:
+                  print(f"| `{name}` | {old} | {new} | {dep} |")
+
+          if added:
+              print("")
+              print("**Added packages**")
+              for name in added:
+                  hits = sorted(t for t in top if reachable(t, name, post, set()))
+                  shown = hits[:3]
+                  suffix = ", ..." if len(hits) > 3 else ""
+                  dep = ", ".join(shown) + suffix if shown else "-"
+                  print(f"- `{name}` {post[name]["version"]} (top-level dependents: {dep})")
+
+          if removed:
+              print("")
+              print("**Removed packages**")
+              for name in removed:
+                  print(f"- `{name}` {pre[name]["version"]}")
           PYEOF
 
           {
-            echo "Automated `uv lock --upgrade` run. Only transitive/indirect"
-            echo "dependency versions are affected; top-level pins in"
-            echo "`pyproject.toml` are unchanged."
+            echo "Automated `uv lock --upgrade` run. Top-level pins in"
+            echo "`pyproject.toml` are unchanged; the table below lists the"
+            echo "transitive/indirect changes."
             echo ""
             python /tmp/dep_bump_table.py
           } > /tmp/dep_bump_body.md
