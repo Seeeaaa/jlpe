@@ -397,13 +397,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
-      uv_version: ${{ steps.uvver.outputs.version }}
+      uv_version: ${{ needs.versions.outputs.uv_version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Read uv version from Dockerfile
-        id: uvver
-        uses: ./.github/actions/read-uv-version
 
       - name: Build matrix from candidates.json
         id: set
