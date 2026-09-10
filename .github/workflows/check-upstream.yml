@@ -61,6 +61,14 @@ jobs:
   # was selected. The normalize step guarantees a real csv string.
   versions:
     runs-on: ubuntu-latest
+    # The stamp-date job in build.yml pushes a "[skip build]" commit that
+    # touches exactly pyproject.toml / uv.lock, which also matches this
+    # workflow's push paths filter above. Without this author guard, every
+    # stamp commit re-runs the full upstream check a minute after the push
+    # that already triggered it via the original PR. Skip the push path for
+    # the bot's own stamp commits, mirroring the "[skip build]" logic in
+    # build.yml; the scheduled and manual runs are unaffected.
+    if: github.event_name != 'push' || github.event.head_commit.author.username != 'github-actions[bot]'
     outputs:
       checks: ${{ steps.norm.outputs.checks }}
       components: ${{ steps.norm.outputs.components }}
