@@ -38,8 +38,11 @@ jobs:
     # The stamp-date job guards this marker before pushing (see the
     # "Commit and push" step there); skip-build-notice below watches the
     # reverse case (marker present on a human commit that changes image
-    # content).
-    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip build]')
+    # content). The marker only suppresses the pipeline when authored by the
+    # bot (the sole legitimate emitter): requiring bot authorship prevents a
+    # multi-commit push whose head carries "[skip build]" but whose earlier
+    # commits touch image files from silently skipping the build.
+    if: github.event_name == 'push' && !(contains(github.event.head_commit.message, '[skip build]') && github.event.head_commit.author.username == 'github-actions[bot]')
     outputs:
       image: ${{ steps.filter.outputs.image }}
     steps:
@@ -210,11 +213,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Warn if [skip build] suppressed an image-content change
         run: |
-          if git diff --quiet HEAD^ HEAD -- pyproject.toml uv.lock; then
+          # Diff the whole push range (before -> sha), not just HEAD^ HEAD:
+          # a multi-commit push can change pyproject.toml/uv.lock in an
+          # earlier commit while the head commit alone carries "[skip build]".
+          # fetch-depth: 0 makes github.event.before available for the range.
+          if git diff --quiet "${{ github.event.before }}" "${{ github.sha }}" -- pyproject.toml uv.lock; then
             echo "Commit is marked [skip build] and does not touch pyproject.toml or uv.lock."
             echo "No image content was skipped; nothing to do."
           else
