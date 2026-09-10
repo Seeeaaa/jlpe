@@ -33,13 +33,17 @@ jobs:
           github-token: ${{ github.event_name == 'pull_request' && secrets.GITHUB_TOKEN || secrets.PAT_FOR_BOTS || secrets.GITHUB_TOKEN }}
           script: |
             const isTestRun = context.eventName === "pull_request";
-            const prs = await github.rest.pulls.list({
+            // pulls.list returns only the first page (30 PRs by default), so
+            // more than 30 open PRs targeting main would silently skip the
+            // rest. github.paginate walks every page and returns the merged
+            // array directly (no .data wrapper).
+            const prs = await github.paginate(github.rest.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: "open",
               base: "main",
             });
-            for (const pr of prs.data) {
+            for (const pr of prs) {
               if (isTestRun) {
                 console.log(`[test run] would update PR #${pr.number}`);
                 continue;
