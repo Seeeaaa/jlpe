@@ -275,6 +275,75 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Compute bump table
+        id: table
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          cat > /tmp/dep_bump_table.py <<'PYEOF'
+          import re
+          import subprocess
+          import tomllib
+
+          def parse_lock(text):
+              data = tomllib.loads(text)
+              return {
+                  p["name"]: {
+                      "version": p["version"],
+                      "deps": [d["name"] for d in p.get("dependencies", [])],
+                  }
+                  for p in data.get("package", [])
+              }
+
+          def top_level_names(text):
+              data = tomllib.loads(text)
+              names = set()
+              for group in data.get("dependency-groups", {}).values():
+                  for spec in group:
+                      m = re.match(r"^([A-Za-z0-9_.-]+)", spec)
+                      if m:
+                          names.add(m.group(1))
+              return sorted(names)
+
+          def reachable(start, target, lock, seen):
+              if start == target:
+                  return True
+              if start in seen or start not in lock:
+                  return False
+              seen.add(start)
+              return any(reachable(d, target, lock, seen) for d in lock[start]["deps"])
+
+          pre = parse_lock(subprocess.run(
+              ["git", "show", "HEAD:uv.lock"], capture_output=True, text=True, check=True
+          ).stdout)
+          post = parse_lock(open("uv.lock", encoding="utf-8").read())
+          top = top_level_names(open("pyproject.toml", encoding="utf-8").read())
+
+          rows = []
+          for name in sorted(set(pre) & set(post)):
+              old, new = pre[name]["version"], post[name]["version"]
+              if old == new:
+                  continue
+              hits = sorted(t for t in top if reachable(t, name, post, set()))
+              shown = hits[:3]
+              suffix = ", ..." if len(hits) > 3 else ""
+              dep = ", ".join(shown) + suffix if shown else "-"
+              rows.append((name, old, new, dep))
+
+          print("| package | previous | new | top-level dependents |")
+          print("|---|---|---|---|")
+          for name, old, new, dep in rows:
+              print(f"| `{name}` | {old} | {new} | {dep} |")
+          PYEOF
+
+          {
+            echo "Automated `uv lock --upgrade` run. Only transitive/indirect"
+            echo "dependency versions are affected; top-level pins in"
+            echo "`pyproject.toml` are unchanged."
+            echo ""
+            python /tmp/dep_bump_table.py
+          } > /tmp/dep_bump_body.md
+          cat /tmp/dep_bump_body.md
+
       - name: Create pull request
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
@@ -283,10 +352,7 @@ jobs:
           add-paths: uv.lock
           commit-message: "build(deps): upgrade transitive dependencies in uv.lock"
           title: "build(deps): upgrade transitive dependencies in uv.lock"
-          body: |
-            Automated `uv lock --upgrade` run. Only transitive/indirect
-            dependency versions are affected, top-level pins in
-            `pyproject.toml` are unchanged.
+          body-path: /tmp/dep_bump_body.md
           branch: upgrade-intermediate-deps
           labels: dependencies
           delete-branch: true
