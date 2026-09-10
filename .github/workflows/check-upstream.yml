@@ -70,7 +70,7 @@ jobs:
       uv_version: ${{ steps.extract.outputs.uv_version }}
       uv_digest: ${{ steps.extract.outputs.uv_digest }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Normalize checks csv (empty = all)
         id: norm
@@ -140,7 +140,7 @@ jobs:
         include: ${{ fromJson(needs.versions.outputs.components) }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install crane
         uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
@@ -256,10 +256,10 @@ jobs:
     if: contains(needs.versions.outputs.checks, 'intermediate')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ needs.versions.outputs.uv_version }}
 
@@ -305,7 +305,7 @@ jobs:
       matrix: ${{ steps.set.outputs.matrix }}
       uv_version: ${{ steps.uvver.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Extract uv version from Dockerfile
         id: uvver
@@ -346,7 +346,7 @@ jobs:
         include: ${{ fromJson(needs.dependency-probes.outputs.matrix) }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Check if already enabled
         id: guard
@@ -360,7 +360,7 @@ jobs:
 
       - name: Install uv
         if: steps.guard.outputs.skip != 'true'
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ needs.dependency-probes.outputs.uv_version }}
 
@@ -535,10 +535,10 @@ jobs:
     if: contains(needs.versions.outputs.checks, 'outdated')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: ${{ needs.versions.outputs.python_version }}
 
