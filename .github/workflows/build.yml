@@ -399,6 +399,10 @@ jobs:
         run: |
           docker exec -i test_container python - < tests/smoke/test_narwhals.py
 
+      - name: Smoke test - all top-level packages importable
+        run: |
+          docker exec -i test_container python - < tests/smoke/test_all_top_level_imports.py
+
       - name: Smoke test - JupyterLab starts and kernel is registered
         run: |
           # `docker exec -d` output is not captured by `docker logs`, so redirect
