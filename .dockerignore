@@ -1,0 +1,12 @@
+# Build context hygiene: docker build sends the whole repo as context, but the
+# image only ever COPYs pyproject.toml and uv.lock. Excluding the rest shrinks
+# the transfer (especially .git, which grows with every stamp commit) and
+# prevents a stray large file from ballooning the context.
+.git
+.github
+tests
+README.md
+LICENSE
+.gitignore
+.gitattributes
+AGENTS.md
