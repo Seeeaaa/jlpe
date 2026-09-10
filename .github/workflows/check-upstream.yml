@@ -190,7 +190,7 @@ jobs:
               | jq -r .tag_name | sed 's/^v//') || true
             ref="ghcr.io/astral-sh/uv:${latest}"
           fi
-          if [ -z "$latest" ]; then
+          if [ -z "$latest" ] || [ "$latest" = "null" ]; then
             echo "::error::Failed to resolve latest version for ${{ matrix.component }}"
             exit 1
           fi
