@@ -20,24 +20,18 @@ permissions:
 jobs:
   update-lock:
     runs-on: ubuntu-latest
+    # Dependabot branch pushes are treated as fork PRs: they receive a
+    # read-only GITHUB_TOKEN and NO repository secrets (PAT_FOR_BOTS is
+    # empty). This job cannot regenerate and re-commit uv.lock via the PAT in
+    # that situation, and it must not fail (it is a required status check).
+    # Skip it for dependabot so the check reports neutral instead of dying at
+    # checkout with "could not read Username"; any lock drift is caught by the
+    # nightly check-upstream intermediate-deps job against main.
+    if: github.actor != 'dependabot[bot]'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # On a real push, PAT is required instead of the default GITHUB_TOKEN
-          # so that the resulting push is treated as a "real" push and
-          # re-triggers build.yml (pull_request/synchronize) on this branch.
-          # On a pull_request run (this workflow file itself changed, e.g. a
-          # Dependabot action-version bump), the commit step below is skipped
-          # via `if:`, so this is read-only verification only -- the default
-          # GITHUB_TOKEN is enough.
-          #
-          # Dependabot branch pushes (dependabot[bot] as head commit author)
-          # receive NO custom repository secrets at all: GitHub passes an
-          # empty string for PAT_FOR_BOTS there, and checkout used to die
-          # with "could not read Username". Fall back to GITHUB_TOKEN in
-          # that case; the "Bot PAT available" step detects it and the
-          # commit step degrades to verification-only (see its `if:`).
           token: ${{ github.event_name == 'pull_request' && secrets.GITHUB_TOKEN || secrets.PAT_FOR_BOTS || secrets.GITHUB_TOKEN }}
 
       - name: Bot PAT available
@@ -49,7 +43,7 @@ jobs:
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::PAT_FOR_BOTS not provided for this event type (expected on dependabot[bot] pushes) -- running verification-only, no auto-commit"
+            echo "::warning::PAT_FOR_BOTS not provided -- running verification-only, no auto-commit"
           fi
 
       - name: Read uv version from Dockerfile
