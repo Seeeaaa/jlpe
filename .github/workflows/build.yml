@@ -296,19 +296,12 @@ jobs:
           retention-days: 1
 
       - name: Scan image for vulnerabilities
-        # Report-only and non-blocking in both senses: severity filtering
-        # decides what gets surfaced (no exit-code gate), AND continue-on-error
-        # means an operational failure of the scan itself (e.g. vulnerability
-        # DB download rate limit) cannot fail the build either, so the
-        # unattended stamp-date pipeline stays zero-touch. Findings reach a
-        # human via the SARIF upload below
-        # (Security tab), covering the surface Dependabot alerts do not: the
-        # OS layer (base image + apt packages) and the uv-synced Python
-        # site-packages in one assembled-image scan.
-        # Third-party action pinned to a full commit SHA per AGENTS.md.
-        # v0.36.0 is the first post-supply-chain release (the Mar 2026 attack
-        # force-pushed 76/77 historical tags); this SHA is the signed,
-        # GitHub-verified commit for the v-prefix tag.
+        # Report-only and non-blocking: feeds the Security tab via SARIF and
+        # must never fail the build on its own (an operational failure such as
+        # DB rate-limit should not kill the unattended stamp-date pipeline).
+        # It surfaces the FULL picture, including unfixed findings in the base
+        # image (upstream's problem, not a publish blocker). The actual publish
+        # gate is the separate "Gate on fixed critical" step below.
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -316,6 +309,24 @@ jobs:
           severity: HIGH,CRITICAL
           format: sarif
           output: trivy-results.sarif
+
+      - name: Gate on fixed critical vulnerabilities
+        # The real publish gate. ignore-unfixed: true reports only
+        # vulnerabilities that already have a published fix, so the standing
+        # base-image backlog (all currently unfixed) does not block publishing;
+        # the gate trips only when a CRITICAL with a fix exists and we have
+        # not yet applied it (normally by bumping the base image via
+        # check-upstream's bump-base job). exit-code '1' fails the step, which
+        # fails the build job and, via needs:, prevents the push job from
+        # publishing to Docker Hub. format table avoids the SARIF path's
+        # exit-code quirk.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: vyxan/jlpe_image:${{ steps.ref.outputs.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
 
       - name: Upload scan results to GitHub Security tab
         if: always()
@@ -421,6 +432,7 @@ jobs:
     if: |
       always() &&
       needs.smoke-test.result == 'success' &&
+      needs.build.result == 'success' &&
       (
         (github.event_name == 'push' &&
          needs.changes.result == 'success' &&
