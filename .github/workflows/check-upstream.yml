@@ -512,15 +512,13 @@ jobs:
         if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success'
         run: |
           # Smoke tests live as standalone scripts under tests/smoke/, one per
-          # library, and build.yml runs each by piping the file into the test
-          # container. So "folding" a probe into permanent coverage is just a
-          # move plus a one-line build.yml step -- no fragile anchor
-          # matching against inline heredocs. The probe script is already a
-          # standalone module with a main() guard, so it moves into
-          # tests/smoke/ unchanged (renamed to match the test_<name>.py
+          # library, and build.yml's smoke-test job loops over tests/smoke/*.py
+          # and pipes each into the container. So "folding" a probe into
+          # permanent coverage is just a move - no build.yml step to insert.
+          # The probe script is already a standalone module with a main()
+          # guard, so it moves in unchanged (renamed to the test_<name>.py
           # convention). git mv (not cp) removes the probe from
-          # .github/dep-probes/tests/ in the same commit, so an enable-dep
-          # PR cannot leave a stale duplicate behind. Idempotent: a second
+          # .github/dep-probes/tests/ in the same commit. Idempotent: a second
           # pass sees the target present and leaves both files untouched.
           test_path="${{ matrix.smoke_test }}"
           name="${{ matrix.name }}"
@@ -542,46 +540,6 @@ jobs:
           mkdir -p tests/smoke
           git mv "$test_path" "$target"
 
-          # Insert a one-line smoke-test step just BEFORE the JupyterLab
-          # startup check. That step is structurally the last Python smoke
-          # test before the infra checks (extensions resolve), so it is a
-          # stable anchor regardless of how many library smoke tests have
-          # already been folded in. Anchoring on the visualization step was
-          # fragile: it was only the LAST smoke test when written, and every
-          # later fold (ccxt, narwhals, ...) appended after it, so a new
-          # probe would re-insert into the same mid-chain slot forever.
-          python - "$name" <<'PYEOF'
-          import sys
-
-          name = sys.argv[1]
-          marker = f"Smoke test - {name}"
-          step = (
-              "      - name: " + marker + "\n"
-              + "        run: |\n"
-              + f"          docker exec -i test_container python - < tests/smoke/test_{name}.py\n"
-          )
-          anchor = (
-              "      - name: Smoke test - JupyterLab starts and kernel is registered\n"
-          )
-
-          with open(".github/workflows/build.yml") as f:
-              build = f.read()
-
-          if marker in build:
-              print(f"{marker} already present in build.yml, skipping step insert")
-              sys.exit(0)
-          if anchor not in build:
-              print("::error::could not locate JupyterLab step anchor in build.yml")
-              sys.exit(1)
-
-          # Insert BEFORE the anchor so the new smoke test lands at the end
-          # of the library-smoke-test chain, right before the infra checks.
-          build = build.replace(anchor, step + anchor, 1)
-          with open(".github/workflows/build.yml", "w") as f:
-              f.write(build)
-          print(f"folded tests/smoke/test_{name}.py and inserted '{marker}' step")
-          PYEOF
-
       - name: Create pull request
         if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
@@ -592,14 +550,13 @@ jobs:
             uv.lock
             .github/dep-probes/candidates.json
             .github/dep-probes/tests
-            .github/workflows/build.yml
             tests/smoke
           commit-message: "build(deps): enable ${{ matrix.name }} (compatibility probe passed)"
           title: "build(deps): enable ${{ matrix.name }} (compatibility probe passed)"
           body: |
             Automated compatibility probe for `${{ matrix.name }}` succeeded: dependency resolution and the smoke test both passed against the currently pinned stack. Review the resolved version in pyproject.toml/uv.lock before merging.
 
-            This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`, since it will no longer be excluded once merged, and folds `${{ matrix.smoke_test }}` into `tests/smoke/` with a matching build.yml step so future ${{ matrix.name }} version bumps get the same regression coverage as the rest of the ML stack.
+            This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`, since it will no longer be excluded once merged, and folds `${{ matrix.smoke_test }}` into `tests/smoke/`, where the smoke-test loop picks it up automatically, so future ${{ matrix.name }} version bumps get the same regression coverage as the rest of the ML stack.
 
           branch: enable-dep-${{ matrix.name }}
           labels: dependencies,compatibility-probe
