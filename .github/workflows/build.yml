@@ -354,54 +354,23 @@ jobs:
       - name: Start container
         run: docker run -d --init --name test_container vyxan/jlpe_image:latest -c "sleep infinity"
 
-      - name: Smoke test - data stack
+      - name: Smoke test - library stack (one process per tests/smoke script)
         run: |
-          docker exec -i test_container python - < tests/smoke/test_data_stack.py
-
-      - name: Smoke test - tsfresh
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_tsfresh.py
-
-      - name: Smoke test - ML libraries (CPU real, GPU code-path only)
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_ml_libraries.py
-
-      - name: Smoke test - statsforecast
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_statsforecast.py
-
-      - name: Smoke test - mlflow
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_mlflow.py
-
-      - name: Smoke test - shap
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_shap.py
-
-      - name: Smoke test - prophet
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_prophet.py
-
-      - name: Smoke test - scipy, sklearn, statsmodels, optuna, sqlalchemy, dask
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_stats_and_ml_stacks.py
-
-      - name: Smoke test - visualization stack
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_visualization.py
-      - name: Smoke test - mlforecast
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_mlforecast.py
-      - name: Smoke test - ccxt
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_ccxt.py
-      - name: Smoke test - narwhals
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_narwhals.py
-
-      - name: Smoke test - all top-level packages importable
-        run: |
-          docker exec -i test_container python - < tests/smoke/test_all_top_level_imports.py
+          # Each tests/smoke/*.py is a standalone script with a main() guard.
+          # Piping the file into the container (rather than a mount) keeps the
+          # test hermetic against the built image's Python. Iterate in sorted
+          # order so the run is deterministic; print a banner per script so a
+          # failure still names its file even though it is one step (not 13).
+          # Adding a new smoke test means dropping a file into tests/smoke/ -
+          # no build.yml edit.
+          for script in tests/smoke/*.py; do
+            name=$(basename "$script")
+            echo "--- $name ---"
+            docker exec -i test_container python - < "$script" || {
+              echo "::error::smoke test failed: $name"
+              exit 1
+            }
+          done
 
       - name: Smoke test - JupyterLab starts and kernel is registered
         run: |
