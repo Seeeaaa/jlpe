@@ -1126,7 +1126,7 @@ wheels = [
 
 [[package]]
 name = "jlpe"
-version = "3.13.15+slim.trixie.202609120152"
+version = "3.13.15+slim.trixie.202609121141"
 source = { virtual = "." }
 
 [package.dev-dependencies]
