@@ -1,0 +1,44 @@
+name: Compute dependency bump table
+description: >-
+  Builds the markdown summary body for a `uv lock --upgrade` PR. Compares the
+  committed uv.lock (HEAD) against the freshly upgraded uv.lock in the working
+  tree and prints, for every package whose version changed, the previous and
+  new versions plus the top-level dependency groups that pull it in. Also
+  lists packages that were added or removed outright. Output is written as a
+  file so the caller can hand it to create-pull-request via body-path.
+
+inputs:
+  body-path:
+    description: >-
+      Absolute path where the generated markdown body is written (the caller
+      will pass this to create-pull-request as body-path).
+    required: false
+    default: /tmp/dep_bump_body.md
+
+outputs:
+  body-path:
+    description: >-
+      The path the markdown body was written to (echo of the body-path input,
+      so the caller can reference it as a step output).
+    value: ${{ inputs.body-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compute dependency bump table
+      shell: bash
+      env:
+        BODY_PATH: ${{ inputs.body-path }}
+      run: |
+        # The Python lives beside this action so the call site stays a single
+        # line. It reads uv.lock (post-upgrade) and pyproject.toml from the
+        # working directory, plus the pre-upgrade uv.lock via `git show
+        # HEAD:uv.lock`, so the checkout step must have run first.
+        {
+          echo "Automated \`uv lock --upgrade\` run. Top-level pins in"
+          echo "\`pyproject.toml\` are unchanged; the table below lists the"
+          echo "transitive/indirect changes."
+          echo ""
+          python "$GITHUB_ACTION_PATH/summarize_deps.py"
+        } > "$BODY_PATH"
+        cat "$BODY_PATH"
