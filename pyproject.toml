@@ -28,7 +28,7 @@ ml = [
     "prophet==1.4.0",
     "optuna==5.0.0",
     "shap==0.52.0",
-    "scikit-learn==1.9.0",
+    "scikit-learn==1.9.1",
     "statsmodels==0.15.0",
     "tsfresh[dask]==0.21.2",
     "mlflow==3.16.0",
