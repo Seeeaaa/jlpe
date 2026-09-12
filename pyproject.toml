@@ -51,7 +51,7 @@ data = [
 ]
 
 visualization = [
-    "matplotlib==3.11.1",
+    "matplotlib==3.11.2",
     "seaborn==0.13.2",
     "plotly==7.0.0",
     "colorcet==3.2.1",
