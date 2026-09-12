@@ -295,39 +295,37 @@ jobs:
           path: jlpe-image.tar
           retention-days: 1
 
-      - name: Scan image for vulnerabilities
-        # Report-only and non-blocking: feeds the Security tab via SARIF and
-        # must never fail the build on its own (an operational failure such as
-        # DB rate-limit should not kill the unattended stamp-date pipeline).
-        # It surfaces the FULL picture, including unfixed findings in the base
-        # image (upstream's problem, not a publish blocker). The actual publish
-        # gate is the separate "Gate on fixed critical" step below.
+      - name: Scan image and gate on fixed vulnerabilities
+        # One scan serves both the Security-tab SARIF report and the publish
+        # gate, via a trivy-action subtlety. With format set to sarif the
+        # action normally unsets the severity filter (entrypoint.sh runs
+        # `unset TRIVY_SEVERITY` unless limit-severities-for-sarif is true),
+        # so the report stays complete no matter what severity the caller
+        # asked for. That unset is what forced the old two-step design, a
+        # SARIF pass that reported everything plus a separate table pass that
+        # re-applied severity CRITICAL just to recover a filtered exit-code
+        # gate. limit-severities-for-sarif set to true suppresses the unset,
+        # so the one severity below drives both the SARIF content and the
+        # exit-code gate, with no second scan. The gate trips on fixed HIGH
+        # or CRITICAL findings through ignore-unfixed, meaning only
+        # vulnerabilities that already have a published fix count, so the
+        # standing base-image backlog (no fix yet) never blocks. A finding
+        # with an available fix we have not applied, normally corrected by
+        # check-upstream's bump-base job, is what must stop the push job.
+        # exit-code set to 1 turns such a finding into a step failure, while
+        # continue-on-error still tolerates operational failures (DB
+        # rate-limit) without weakening the gate, because a finding trips
+        # exit-code before any operational failure can mask it.
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: vyxan/jlpe_image:${{ steps.ref.outputs.sha }}
-          severity: HIGH,CRITICAL
-          format: sarif
-          output: trivy-results.sarif
-
-      - name: Gate on fixed critical vulnerabilities
-        # The real publish gate. ignore-unfixed: true reports only
-        # vulnerabilities that already have a published fix, so the standing
-        # base-image backlog (all currently unfixed) does not block publishing;
-        # the gate trips only when a CRITICAL with a fix exists and we have
-        # not yet applied it (normally by bumping the base image via
-        # check-upstream's bump-base job). exit-code '1' fails the step, which
-        # fails the build job and, via needs:, prevents the push job from
-        # publishing to Docker Hub. format table avoids the SARIF path's
-        # exit-code quirk.
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: vyxan/jlpe_image:${{ steps.ref.outputs.sha }}
-          severity: CRITICAL
+          severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: '1'
-          format: table
-
+          limit-severities-for-sarif: 'true'
+          format: sarif
+          output: trivy-results.sarif
       - name: Upload scan results to GitHub Security tab
         if: always()
         continue-on-error: true
