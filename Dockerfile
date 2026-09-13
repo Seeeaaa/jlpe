@@ -20,7 +20,17 @@ ENV PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
 # ARG changes once a day and refreshes system packages without invalidating
 # the (much heavier) uv sync layers below.
 ARG APT_BUST=0
+# `upgrade` (not just `install`) is what actually ingests Debian security
+# fixes for packages that are already present in the base image (e.g.
+# libpcre2-8-0): `apt-get install <list>` only adds missing packages and
+# leaves already-installed transitive deps at their base-image version, so
+# without upgrading, a published fix (say 10.46-1~deb13u2 for a security
+# release) would never reach the image regardless of how often APT_BUST
+# busts the cache. upgrade -y pulls forward every installed package to the
+# latest available in the trixie archive, which is what makes the
+# apt-based publish gate (see build.yml) meaningful.
 RUN apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         build-essential libgomp1 git postgresql-client && \
     rm -rf /var/lib/apt/lists/*
