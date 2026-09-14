@@ -295,37 +295,55 @@ jobs:
           path: jlpe-image.tar
           retention-days: 1
 
-      - name: Scan image and gate on fixed vulnerabilities
-        # One scan serves both the Security-tab SARIF report and the publish
-        # gate, via a trivy-action subtlety. With format set to sarif the
-        # action normally unsets the severity filter (entrypoint.sh runs
-        # `unset TRIVY_SEVERITY` unless limit-severities-for-sarif is true),
-        # so the report stays complete no matter what severity the caller
-        # asked for. That unset is what forced the old two-step design, a
-        # SARIF pass that reported everything plus a separate table pass that
-        # re-applied severity CRITICAL just to recover a filtered exit-code
-        # gate. limit-severities-for-sarif set to true suppresses the unset,
-        # so the one severity below drives both the SARIF content and the
-        # exit-code gate, with no second scan. The gate trips on fixed HIGH
-        # or CRITICAL findings through ignore-unfixed, meaning only
-        # vulnerabilities that already have a published fix count, so the
-        # standing base-image backlog (no fix yet) never blocks. A finding
-        # with an available fix we have not applied, normally corrected by
-        # check-upstream's bump-base job, is what must stop the push job.
-        # exit-code set to 1 turns such a finding into a step failure, while
-        # continue-on-error still tolerates operational failures (DB
-        # rate-limit) without weakening the gate, because a finding trips
-        # exit-code before any operational failure can mask it.
+      - name: Scan image for vulnerabilities
+        # Report-only: feeds the Security tab via SARIF and never fails the
+        # build on its own. limit-severities-for-sarif limits the report to
+        # HIGH/CRITICAL; the actual publish gate is the separate apt-based
+        # step below, which checks for a pending Debian-security upgrade
+        # rather than trusting trivy's advisory "fixed version" field. The
+        # distinction matters: trivy's ignore-unfixed blocks on any finding
+        # whose advisory lists a fixed version, even when that version has
+        # not actually been published to our distro (e.g. a trixie package
+        # marked <no-dsa>/fix_deferred), so an advisory-driven gate can block
+        # publishing when no installable fix exists. continue-on-error still
+        # guards against an operational scan failure (DB rate-limit).
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: vyxan/jlpe_image:${{ steps.ref.outputs.sha }}
           severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: '1'
           limit-severities-for-sarif: 'true'
           format: sarif
           output: trivy-results.sarif
+
+      - name: Gate on pending Debian security upgrades
+        # The real publish gate. Instead of an advisory-driven trivy exit-code
+        # (which can block when no fix is actually installable), ask apt
+        # directly whether the built image has a pending upgrade coming from a
+        # Debian security channel. A pending security upgrade means a real fix
+        # exists and was not applied, so the gate fails the build and, via
+        # needs:, prevents the push job from publishing. A plain package bump
+        # from the main trixie archive (not security.debian.org / trixie-
+        # security) does not block, matching the intent that only an available
+        # security fix should stop a publish.
+        run: |
+          # `apt-get -s upgrade` prints, per package, a destination tuple like
+          # `(10.46-1~deb13u2 Debian-Security:13.0/stable-security [amd64])`.
+          # The suite token (Debian-Security / stable-security / trixie-
+          # security) marks an upgrade coming from the security channel, i.e. a
+          # real published fix that has not been applied. Match on that token
+          # rather than on a URL, which never appears in the simulation output.
+          pending=$(docker run --rm --entrypoint bash \
+            vyxan/jlpe_image:${{ steps.ref.outputs.sha }} -c \
+            'apt-get update -qq >/dev/null 2>&1 && apt-get -s upgrade | grep -iE "^Inst .*security" || true')
+          if [ -n "$pending" ]; then
+            echo "::error::pending Debian-security upgrade(s) detected in the image:"
+            echo "$pending"
+            echo "A security fix is available and was not applied; rebuild after it"
+            echo "has been pulled into the apt layer (see the Dockerfile upgrade step)."
+            exit 1
+          fi
+          echo "no pending Debian-security upgrades: publish gate OK"
       - name: Upload scan results to GitHub Security tab
         if: always()
         continue-on-error: true
