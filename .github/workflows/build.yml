@@ -207,13 +207,8 @@ jobs:
 
   build:
     needs: [changes, stamp-date]
-    # upload-sarif needs security-events: write on the push path (the real
-    # stamp-date pipeline). PR runs use a separate API path that does not
-    # require it, which is why the PR check went green without this - but the
-    # first push to main after merge would fail with "Resource not accessible".
     permissions:
       contents: read
-      security-events: write
     if: |
       always() &&
       needs.stamp-date.result != 'failure' &&
@@ -296,25 +291,19 @@ jobs:
           retention-days: 1
 
       - name: Scan image for vulnerabilities
-        # Report-only: feeds the Security tab via SARIF and never fails the
-        # build on its own. limit-severities-for-sarif limits the report to
-        # HIGH/CRITICAL; the actual publish gate is the separate apt-based
-        # step below, which checks for a pending Debian-security upgrade
-        # rather than trusting trivy's advisory "fixed version" field. The
-        # distinction matters: trivy's ignore-unfixed blocks on any finding
-        # whose advisory lists a fixed version, even when that version has
-        # not actually been published to our distro (e.g. a trixie package
-        # marked <no-dsa>/fix_deferred), so an advisory-driven gate can block
-        # publishing when no installable fix exists. continue-on-error still
-        # guards against an operational scan failure (DB rate-limit).
+        # Log-only scan: shows the full high/critical picture in the build
+        # log but does not upload SARIF to the Security tab. Code scanning
+        # would otherwise keep every digest's findings open as separate,
+        # never-closing 'historical' alerts because image fingerprints change
+        # on every build. The publish gate is the separate apt-based step
+        # below; continue-on-error keeps a scan outage (DB rate-limit) from
+        # failing the unattended stamp-date pipeline.
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: vyxan/jlpe_image:${{ steps.ref.outputs.sha }}
           severity: CRITICAL,HIGH
-          limit-severities-for-sarif: 'true'
-          format: sarif
-          output: trivy-results.sarif
+          format: table
 
       - name: Gate on pending Debian security upgrades
         # The real publish gate. Instead of an advisory-driven trivy exit-code
@@ -329,10 +318,9 @@ jobs:
         run: |
           # `apt-get -s upgrade` prints, per package, a destination tuple like
           # `(10.46-1~deb13u2 Debian-Security:13.0/stable-security [amd64])`.
-          # The suite token (Debian-Security / stable-security / trixie-
-          # security) marks an upgrade coming from the security channel, i.e. a
-          # real published fix that has not been applied. Match on that token
-          # rather than on a URL, which never appears in the simulation output.
+          # The security suite token marks a real published fix that has not
+          # yet been applied. A pending security-channel upgrade means the
+          # built image missed applying an available fix, so the step fails.
           pending=$(docker run --rm --entrypoint bash \
             vyxan/jlpe_image:${{ steps.ref.outputs.sha }} -c \
             'apt-get update -qq >/dev/null 2>&1 && apt-get -s upgrade | grep -iE "^Inst .*security" || true')
@@ -344,12 +332,6 @@ jobs:
             exit 1
           fi
           echo "no pending Debian-security upgrades: publish gate OK"
-      - name: Upload scan results to GitHub Security tab
-        if: always()
-        continue-on-error: true
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4
-        with:
-          sarif_file: trivy-results.sarif
 
   smoke-test:
     needs: build
