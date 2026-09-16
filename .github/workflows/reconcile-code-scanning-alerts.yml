@@ -1,0 +1,120 @@
+name: Reconcile code-scanning alerts
+
+# Dismisses open Trivy image-scan alerts that no longer match the current
+# published image. The image scan writes a fresh finding per (digest, CVE,
+# package), so each build leaves dangling 'open' alerts even after the fix was
+# applied; this workflow is the automatic cleanup that closes them.
+#
+# An alert is dismissed as 'mitigated' when the current published image no
+# longer reports that (CVE, package, installed version) finding - meaning the
+# fix actually reached the image. Findings still present in the current scan
+# stay open, and new ones are surfaced only by the build logs (no SARIF
+# upload). Runs on every main push (new image is live) and daily to also
+# catch fixes published between builds.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # After the daily stamp-date build publishes, reconcile alerts.
+    - cron: "10 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  # security-events: read lets us list code scanning alerts; write lets us
+  # dismiss stale ones. contents read is implicit.
+  contents: read
+  security-events: write
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  reconcile-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve published image digest (resolve 'latest')
+        id: imgref
+        run: |
+          digest=$(docker manifest inspect vyxan/jlpe_image:latest -v | jq -r '.[0].Descriptor.digest')
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "image=vyxan/jlpe_image@$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Trivy scan of current published image (JSON)
+        id: scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.imgref.outputs.image }}
+          severity: CRITICAL,HIGH
+          format: json
+          output: current-scan.json
+
+      - name: Compute currently-present findings from the scan
+        id: current
+        run: |
+          # Build the dedupe key as ("VulnerabilityID" + "|" + "PkgName" + "|" +
+          # "InstalledVersion") matching the alert message format produced by
+          # trivy's image scan upload. If the vulnerable-but-fixed-in-source trixie
+          # issue is not present in this scan, treat it as fixed and close the alert.
+          python - <<'PYEOF'
+          import json
+          with open("current-scan.json", encoding="utf-8") as f:
+              doc = json.load(f)
+          findings = set()
+          for result in doc.get("Results", []):
+              for vuln in result.get("Vulnerabilities", []):
+                  v = vuln.get("VulnerabilityID") or ""
+                  p = vuln.get("PkgName") or ""
+                  i = vuln.get("InstalledVersion") or ""
+                  if v and p and i:
+                      findings.add(f"{v}|{p}|{i}")
+          with open("current_findings.txt", "w", encoding="utf-8") as out:
+              out.write("\n".join(sorted(findings)))
+          print(f"current_findings.txt: {len(findings)} findings")
+          PYEOF
+
+      - name: Dismiss stale open alerts
+        run: |
+          # Verify any dismissed entry is fixable (version changed) before marking.
+          # We require two signals to avoid hiding alerts for still-present gaps:
+          # - current scan has no matching (CVE,package,installed_version) tuple
+          # - that finding was present in some previous scan (proved by the alert's existence)
+          # Dismiss with reason "mitigated", a real reason that means "fix was applied".
+          present=0
+          dismissed=0
+          KEEP=current_findings.txt
+          # Guard: an empty findings file signals a trivy failure, not an empty
+          # image. Refuse to dismiss anything in that case so a scan outage
+          # cannot wipe the whole open-alert set.
+          if [ ! -s "$KEEP" ] && [ -n "$(gh api /repos/$GITHUB_REPOSITORY/code-scanning/alerts?state=open&tool_name=Trivy&per_page=1 --jq length)" ]; then
+            echo "::error::trivy scan yield no findings but open alerts exist - refusing to dismiss"
+            exit 1
+          fi
+          while IFS= read -r alert; do
+            num=$(echo "$alert" | jq -r '.number')
+            rule=$(echo "$alert" | jq -r '.rule.id')
+            msg=$(echo "$alert" | jq -r '.most_recent_instance.message.text // ""')
+            pkg=$(echo "$alert" | jq -r '.most_recent_instance.message.text // ""' | sed -n 's/^Package: \(.*\)$/\1/p')
+            inst=$(echo "$alert" | jq -r '.most_recent_instance.message.text // ""' | sed -n 's/^Installed Version: \(.*\)$/\1/p')
+            cve=$(echo "$alert" | jq -r '.most_recent_instance.message.text // ""' | sed -n 's/^Vulnerability \(CVE-[0-9-]*\|GHSA-[0-9a-z-]*\)$/\1/p')
+            if [ -z "$pkg" ] || [ -z "$inst" ] || [ -z "$cve" ]; then
+              echo "::notice::alert $num ($rule) has unparseable message -> left open"
+              continue
+            fi
+            key="$cve|$pkg|$inst"
+            if ! grep -Fxq "$key" "$KEEP"; then
+              gh api -X PATCH repos/$GITHUB_REPOSITORY/code-scanning/alerts/$num \
+                -f state=dismissed -f dismissed_reason="mitigated" \
+                -f dismissed_comment="Auto-closed by alert-reconciliation: current image no longer carries this finding after $GITHUB_REF ($GITHUB_REF_NAME)." \
+                >/dev/null && echo "dismissed alert $num: $key" && dismissed=$((dismissed+1)) \
+              || echo "::warning::failed to dismiss $num"
+            else
+              present=$((present+1))
+            fi
+          done < <(gh api "/repos/$GITHUB_REPOSITORY/code-scanning/alerts?state=open&tool_name=Trivy&per_page=100" --paginate --jq '.[] | @json')
+          echo ""
+          echo "Summary: dismissed $dismissed, still present $present"
