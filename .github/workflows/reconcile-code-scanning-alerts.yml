@@ -40,7 +40,7 @@ jobs:
       - name: Resolve published image digest (resolve 'latest')
         id: imgref
         run: |
-          digest=$(docker manifest inspect vyxan/jlpe_image:latest -v | jq -r '.[0].Descriptor.digest')
+          digest=$(docker manifest inspect vyxan/jlpe_image:latest -v | jq -r '.Descriptor.digest')
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "image=vyxan/jlpe_image@$digest" >> "$GITHUB_OUTPUT"
 
