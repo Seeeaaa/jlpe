@@ -364,7 +364,14 @@ jobs:
       - name: Check if already enabled
         id: guard
         run: |
-          if grep -v '^\s*#' pyproject.toml | grep -qP "\"${{ matrix.name }}(==|>=|<=|~=|!=|\")"; then
+          # Strip an extras suffix (tsfresh[dask] -> tsfresh) before matching:
+          # in a regex the raw brackets form a character class, so the raw
+          # name would miss the pyproject entry. The optional (\[[^]]*\])?
+          # group then matches extras whether the candidate records them
+          # in its name or not.
+          name="${{ matrix.name }}"
+          base="${name%%\[*}"
+          if grep -v '^\s*#' pyproject.toml | grep -qP "\"${base}(\[[^]]*\])?(==|>=|<=|~=|!=|\")"; then
             echo "already present in pyproject.toml, skipping probe"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
@@ -392,18 +399,24 @@ jobs:
       - name: Pin exact resolved version
         if: steps.add.outcome == 'success'
         run: |
+          # The lock lookup must use the base name: uv.lock lists the package
+          # as "tsfresh", not "tsfresh[dask]" (extras live in the requiring
+          # spec), so the raw name would exit with "not found in uv.lock".
+          # The sed keeps the full name with extras in pyproject.
+          name="${{ matrix.name }}"
+          base="${name%%\[*}"
           exact=$(uv run python -c "
           import tomllib
           with open('uv.lock', 'rb') as f:
               lock = tomllib.load(f)
           for pkg in lock['package']:
-              if pkg['name'] == '${{ matrix.name }}':
+              if pkg['name'] == '${base}':
                   print(pkg['version'])
                   break
           else:
-              raise SystemExit('${{ matrix.name }} not found in uv.lock')
+              raise SystemExit('${base} not found in uv.lock')
           ")
-          sed -i -E "s/\"${{ matrix.name }}[<>=!~ ][^\"]*\"/\"${{ matrix.name }}==${exact}\"/" pyproject.toml
+          sed -i -E "s/\"${base}(\[[^]]*\])?[<>=!~ ][^\"]*\"/\"${{ matrix.name }}==${exact}\"/" pyproject.toml
           uv lock
 
       - name: Run smoke test for ${{ matrix.name }}
@@ -411,11 +424,16 @@ jobs:
         id: smoke
         continue-on-error: true
         run: |
+          # The fallback import must use the base name: "import tsfresh[dask]"
+          # is a Python SyntaxError (a subscript is not part of an import
+          # statement); extras are pulled in by the uv environment itself.
+          name="${{ matrix.name }}"
+          base="${name%%\[*}"
           test_path="${{ matrix.smoke_test }}"
           if [ -n "$test_path" ] && [ -f "$test_path" ]; then
             uv run --all-groups python -P "$test_path"
           else
-            uv run --all-groups python -P -c "import ${{ matrix.name }}"
+            uv run --all-groups python -P -c "import ${base}"
           fi
 
       - name: Remove ${{ matrix.name }} from tracked candidates

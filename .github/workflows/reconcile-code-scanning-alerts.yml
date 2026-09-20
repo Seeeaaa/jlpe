@@ -96,7 +96,7 @@ jobs:
           # the run even when no alerts exist.
           open_alerts=$(gh api "/repos/$GITHUB_REPOSITORY/code-scanning/alerts?state=open&tool_name=Trivy&per_page=1" --jq 'length')
           if [ ! -s "$KEEP" ] && [ "$open_alerts" -gt 0 ]; then
-            echo "::error::trivy scan yield no findings but open alerts exist - refusing to dismiss"
+            echo "::error::trivy scan yielded no findings but open alerts exist - refusing to dismiss"
             exit 1
           fi
           while IFS= read -r alert; do
