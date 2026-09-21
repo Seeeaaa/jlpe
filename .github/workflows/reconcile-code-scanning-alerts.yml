@@ -93,8 +93,14 @@ jobs:
           # in the query string cannot background the call, and the count is
           # compared numerically (--jq length over a one-element-or-empty
           # array): [ -n "0" ] is true in bash, so a string test would fail
-          # the run even when no alerts exist.
-          open_alerts=$(gh api "/repos/$GITHUB_REPOSITORY/code-scanning/alerts?state=open&tool_name=Trivy&per_page=1" --jq 'length')
+          # the run even when no alerts exist. The || echo 0 fallback covers
+          # a hard gh failure (network/auth): an empty count would otherwise
+          # make [ -gt ] print "integer expression expected" and, since if
+          # conditions are exempt from errexit, silently pass the guard.
+          # Defaulting to 0 is the safe direction: the guard only refuses
+          # dismissal when it confirms open alerts exist, so a missing count
+          # can never wipe the alert set.
+          open_alerts=$(gh api "/repos/$GITHUB_REPOSITORY/code-scanning/alerts?state=open&tool_name=Trivy&per_page=1" --jq 'length' || echo 0)
           if [ ! -s "$KEEP" ] && [ "$open_alerts" -gt 0 ]; then
             echo "::error::trivy scan yielded no findings but open alerts exist - refusing to dismiss"
             exit 1
@@ -102,10 +108,13 @@ jobs:
           while IFS= read -r alert; do
             num=$(echo "$alert" | jq -r '.number')
             rule=$(echo "$alert" | jq -r '.rule.id')
+            # Extract the message once: pkg/inst/cve below parse the same
+            # field, and re-running jq per field costs three extra processes
+            # per alert (hundreds per run with a large open set).
             msg=$(echo "$alert" | jq -r '.most_recent_instance.message.text // ""')
-            pkg=$(echo "$alert" | jq -r '.most_recent_instance.message.text // ""' | sed -n 's/^Package: \(.*\)$/\1/p')
-            inst=$(echo "$alert" | jq -r '.most_recent_instance.message.text // ""' | sed -n 's/^Installed Version: \(.*\)$/\1/p')
-            cve=$(echo "$alert" | jq -r '.most_recent_instance.message.text // ""' | sed -n 's/^Vulnerability \(CVE-[0-9-]*\|GHSA-[0-9a-z-]*\)$/\1/p')
+            pkg=$(echo "$msg" | sed -n 's/^Package: \(.*\)$/\1/p')
+            inst=$(echo "$msg" | sed -n 's/^Installed Version: \(.*\)$/\1/p')
+            cve=$(echo "$msg" | sed -n 's/^Vulnerability \(CVE-[0-9-]*\|GHSA-[0-9a-z-]*\)$/\1/p')
             if [ -z "$pkg" ] || [ -z "$inst" ] || [ -z "$cve" ]; then
               echo "::notice::alert $num ($rule) has unparseable message -> left open"
               continue
