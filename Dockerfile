@@ -1,6 +1,16 @@
 FROM ghcr.io/astral-sh/uv:0.12.17@sha256:10787c682e4184e4f290de1171fd4703dc63de99221f10fe1c99002ce7fa9acc AS uv
 FROM python:3.13.15-slim-trixie@sha256:8d9d0b8bcf6506481eae4907c18f5e3e7902e629f5f6d684f9e7c32e85e3ddf0
 
+# ensurepip bundles pip into the base image's site-packages, and pip's
+# vendored dependency copies under pip/_vendor are reported by image
+# vulnerability scanners as findings of their own. uv owns all package
+# management in this image and nothing needs pip, so remove it here:
+# this deletes the vendored copies at the root, so scanners no longer see
+# them and stale alerts are dismissed by the reconciliation workflow.
+# Static layer: its content never changes, so it caches forever.
+RUN python -m pip uninstall -y pip && \
+    rm -f /usr/local/bin/pip /usr/local/bin/pip3
+
 # Static OCI metadata: these values never change, so the layer caches
 # forever. Dynamic labels live at the bottom of the file (see there).
 LABEL org.opencontainers.image.title="JLPE" \
