@@ -47,7 +47,7 @@ data = [
     "sqlalchemy==2.0.54",
     "psycopg[binary,pool]==3.3.6",
     "narwhals==2.26.0",
-    "ccxt==4.5.78",
+    "ccxt==4.5.82",
 ]
 
 visualization = [
