@@ -397,6 +397,7 @@ jobs:
           uv add --group "${{ matrix.group }}" "$spec"
 
       - name: Pin exact resolved version
+        id: pin
         if: steps.add.outcome == 'success'
         run: |
           # The lock lookup must use the base name: uv.lock lists the package
@@ -418,6 +419,46 @@ jobs:
           ")
           sed -i -E "s/\"${base}(\[[^]]*\])?[<>=!~ ][^\"]*\"/\"${{ matrix.name }}==${exact}\"/" pyproject.toml
           uv lock
+
+      - name: Compare resolved version against upstream latest
+        id: ceiling
+        if: steps.add.outcome == 'success'
+        run: |
+          # The resolver backs off from any release whose requirements conflict
+          # with an existing pin. uv add can therefore "succeed" at a version
+          # BELOW upstream latest without any error: the probe for
+          # statsforecast resolved 2.0.1 while 2.1.1 was already the latest,
+          # because the 2.1.x line declares pandas<3.0 and pandas==3.0.x is
+          # pinned. Nothing downstream surfaces that backoff - the enable-dep
+          # PR shows only the resolved version, so a reviewer cannot tell
+          # "pinned the current best" from "pinned below a live ceiling", and
+          # Dependabot's nightly direct-bump then fails every run trying to
+          # reach a version the resolver can never pick (seen in practice as
+          # dependency_file_not_resolvable on mlforecast/statsforecast). Emit
+          # the ceiling into the PR body and as a warning at probe time.
+          # The lookup must use the base name: uv.lock lists the package as
+          # "tsfresh", not "tsfresh[dask]".
+          name="${{ matrix.name }}"
+          base="${name%%\[*}"
+          resolved="${{ steps.pin.outputs.version }}"
+          latest=$(curl -sf "https://pypi.org/pypi/${base}/json" | jq -r .info.version) || latest=""
+          if [ -n "$latest" ] && [ "$latest" != "$resolved" ]; then
+            echo "ceiling=true" >> "$GITHUB_OUTPUT"
+            echo "latest_version=$latest" >> "$GITHUB_OUTPUT"
+            # Prebuilt markdown paragraph for the enable-dep PR body, so the
+            # body stays a plain interpolation instead of embedding format()
+            # logic (apostrophes inside expression strings need '' escaping,
+            # which is easy to get wrong).
+            echo "pr_note=Version ceiling: \`${base}\` resolved at \`${resolved}\` but upstream latest is \`${latest}\`. The newer release is unreachable for this pinned stack (requirements conflict), so the resolver backed off to the newest satisfiable version. Dependabot's nightly direct-bump for this package will fail until the conflict resolves upstream; consider dependabot ignore-conditions or a manual pin review." >> "$GITHUB_OUTPUT"
+            echo "::warning::${base} resolved at ${resolved} but upstream latest is ${latest}."
+            echo "::warning::The newer release is unreachable for this pinned stack (requirements conflict)."
+            echo "::warning::Dependabot's nightly direct-bump will fail until the conflict resolves upstream."
+          else
+            echo "ceiling=false" >> "$GITHUB_OUTPUT"
+            echo "latest_version=$latest" >> "$GITHUB_OUTPUT"
+            echo "pr_note=" >> "$GITHUB_OUTPUT"
+            echo "${base} resolved at the upstream latest (${resolved}): no ceiling"
+          fi
 
       - name: Run smoke test for ${{ matrix.name }}
         if: steps.guard.outputs.skip != 'true' && steps.add.outcome == 'success'
@@ -491,6 +532,8 @@ jobs:
           body: |
             Automated compatibility probe for `${{ matrix.name }}` succeeded: dependency resolution and the smoke test both passed against the currently pinned stack. Review the resolved version in pyproject.toml/uv.lock before merging.
 
+            ${{ steps.ceiling.outputs.pr_note }}
+
             This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`, since it will no longer be excluded once merged, and folds `${{ matrix.smoke_test }}` into `tests/smoke/`, where the smoke-test loop picks it up automatically, so future ${{ matrix.name }} version bumps get the same regression coverage as the rest of the ML stack.
 
           branch: enable-dep-${{ matrix.name }}
@@ -508,6 +551,8 @@ jobs:
               echo "resolution failed - still incompatible"
             elif [ "${{ steps.smoke.outcome }}" != "success" ]; then
               echo "resolution OK, smoke test failed"
+            elif [ "${{ steps.ceiling.outputs.ceiling }}" = "true" ]; then
+              echo "compatible - PR opened (enable-dep-${{ matrix.name }}), but resolved BELOW upstream latest ${{ steps.ceiling.outputs.latest_version }}: requirements conflict with the pinned stack"
             else
               echo "compatible - PR opened (enable-dep-${{ matrix.name }})"
             fi
