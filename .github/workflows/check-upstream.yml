@@ -417,6 +417,12 @@ jobs:
           else:
               raise SystemExit('${base} not found in uv.lock')
           ")
+          # Expose the resolved pin as a step output: the ceiling step below
+          # reads steps.pin.outputs.version. Without this wiring it
+          # interpolates as empty, the ceiling paragraph degrades to
+          # "resolved at ``", and any candidate resolved AT latest gets a
+          # false ceiling annotation (latest non-empty, != empty).
+          echo "version=${exact}" >> "$GITHUB_OUTPUT"
           sed -i -E "s/\"${base}(\[[^]]*\])?[<>=!~ ][^\"]*\"/\"${{ matrix.name }}==${exact}\"/" pyproject.toml
           uv lock
 
