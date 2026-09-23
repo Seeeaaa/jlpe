@@ -32,6 +32,7 @@ ml = [
     "statsmodels==0.15.0",
     "tsfresh[dask]==0.21.2",
     "mlflow==3.16.1",
+    "mlforecast==1.0.2",
 ]
 
 data = [

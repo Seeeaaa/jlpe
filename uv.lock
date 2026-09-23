@@ -466,6 +466,19 @@ wheels = [
 ]
 
 [[package]]
+name = "coreforecast"
+version = "0.0.18"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7b/7f/adf447b42c90ecaaf3edaf1334ce75e61a3e8f737a437aed9fd3fd008f22/coreforecast-0.0.18.tar.gz", hash = "sha256:2712aa23699302faf602253e413b6900eff395ddaebfed19ed4f9d9323ee7443", size = 2815868, upload-time = "2026-07-09T17:30:32.945Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d2/51/00063b012da535b1664e65980e2d8873060d36222560d8ae113c9fed19e3/coreforecast-0.0.18-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c610a456d223925eb3a52b3e5c98b3bfeebc499f6538287ceb62fbe1bcb29aed", size = 318115, upload-time = "2026-07-09T17:30:22.361Z" },
+    { url = "https://files.pythonhosted.org/packages/34/c4/2f1fd1db605e99ea0f2172d402b766f0bd67f02530e56384b0a06dee2544/coreforecast-0.0.18-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:b2d8520150fe9d768483181bf8debd5529904f1b4dc8e30bcf69fa04f5d6a66e", size = 348748, upload-time = "2026-07-09T17:30:23.678Z" },
+]
+
+[[package]]
 name = "cryptography"
 version = "50.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1114,6 +1127,7 @@ ml = [
     { name = "catboost" },
     { name = "lightgbm" },
     { name = "mlflow" },
+    { name = "mlforecast" },
     { name = "optuna" },
     { name = "prophet" },
     { name = "scikit-learn" },
@@ -1163,6 +1177,7 @@ ml = [
     { name = "catboost", specifier = "==1.2.10" },
     { name = "lightgbm", specifier = "==4.7.0" },
     { name = "mlflow", specifier = "==3.16.1" },
+    { name = "mlforecast", specifier = "==1.0.2" },
     { name = "optuna", specifier = "==5.0.0" },
     { name = "prophet", specifier = "==1.4.0" },
     { name = "scikit-learn", specifier = "==1.9.1" },
@@ -1678,6 +1693,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/88/62/64068c0d17a7ba479f4dadfa78b3e48921cde8d20878414e7a4a929e66c0/mlflow_tracing-3.16.1.tar.gz", hash = "sha256:315ba1ace00d43498da2ad2b2bbb751f3198d6f9cd328168dfeb49911df41925", size = 1525331, upload-time = "2026-09-16T22:40:58.167Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/00/8c/f40c01433254f49f3b18ef88a4eba481a73a29494f27c072fb7a53812a76/mlflow_tracing-3.16.1-py3-none-any.whl", hash = "sha256:b3ab97c7b4f919704e0cbe0653e6e9b89cf1f8a790f8bb1b4cf7f236df258e9e", size = 1812478, upload-time = "2026-09-16T22:40:56.332Z" },
+]
+
+[[package]]
+name = "mlforecast"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cloudpickle" },
+    { name = "coreforecast" },
+    { name = "fsspec" },
+    { name = "optuna" },
+    { name = "pandas" },
+    { name = "scikit-learn" },
+    { name = "utilsforecast" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/00/2f/520a1428cf01ed0facb2358d8d5972812d2b03b84a9d87de8b7fd9b6b8b1/mlforecast-1.0.2.tar.gz", hash = "sha256:a24f8e04e3590aad7bd037908cdb7b2cfbf295781cd4c8ff087b332968155624", size = 72227, upload-time = "2025-02-18T18:28:57.187Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/4e/3886fcd04d743ddc80819f50b05b4e0c6b21168a598ffe115c08d9c20466/mlforecast-1.0.2-py3-none-any.whl", hash = "sha256:158553b08a526abfe1b2feed175e0a228a555e576948c20260a36f8c7a1d0b7c", size = 72405, upload-time = "2025-02-18T18:28:54.507Z" },
 ]
 
 [[package]]
@@ -2975,6 +3008,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c", size = 433602, upload-time = "2026-05-07T16:13:18.596Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897", size = 131087, upload-time = "2026-05-07T16:13:17.151Z" },
+]
+
+[[package]]
+name = "utilsforecast"
+version = "0.2.15"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "narwhals" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pandas" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d9/55/8a37bb9ce36541fd353466259a07ccfdfaf25c996f3a71d989af4d4c7ba4/utilsforecast-0.2.15.tar.gz", hash = "sha256:c36d65d698a88d0fadc93d2d6737c304c3776397c60ae551ee17aa678caf3659", size = 60609, upload-time = "2025-12-03T16:29:08.652Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6f/11/6c6ee61958b8e60f634b39e2f9a004f5d1c479cb962a2001fc3c72ceed78/utilsforecast-0.2.15-py3-none-any.whl", hash = "sha256:4b43bf5107e3cba13604cd86e93b5cf4906b57105b1900ccf98b8978aabd4150", size = 40344, upload-time = "2025-12-03T16:29:07.144Z" },
 ]
 
 [[package]]
