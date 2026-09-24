@@ -39,10 +39,19 @@ ARG APT_BUST=0
 # busts the cache. upgrade -y pulls forward every installed package to the
 # latest available in the trixie archive, which is what makes the
 # apt-based publish gate (see build.yml) meaningful.
+# No build-essential: every locked package installs from a prebuilt wheel
+# (prophet bundles its compiled stan model, verified in the image), so the
+# dependency install never compiles from source. libgomp1 is kept
+# deliberately: it is the runtime OpenMP library required by lightgbm
+# (lib_lightgbm.so has a hard NEEDED entry for libgomp.so.1) and by numba's
+# parallel threading layer (threading layer = omp). Installing libgomp1
+# alone works on the clean base: it depends only on gcc-14-base and libc6,
+# both already present in slim-trixie, so nothing from build-essential is
+# required to provision it.
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-        build-essential libgomp1 git postgresql-client && \
+        libgomp1 git postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=uv /uv /uvx /bin/
