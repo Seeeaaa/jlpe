@@ -294,7 +294,7 @@ wheels = [
 
 [[package]]
 name = "ccxt"
-version = "4.5.82"
+version = "4.5.84"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohappyeyeballs" },
@@ -320,9 +320,9 @@ dependencies = [
     { name = "yarl" },
     { name = "zlib-ng" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b5/be/7988fd7bc29e839eb56be8ec5a7f29ea254f3a5b06166076da9c3ef17a0a/ccxt-4.5.82.tar.gz", hash = "sha256:ed68ef1a3cf830f31888f696400101572b12e46c2f35af6c2d4082348491b173", size = 6244752, upload-time = "2026-09-21T13:29:01.022Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/9c/ade492e276f154b3c5d8a455db892ac9b6d046ff3d18bb0a1d498aa61a08/ccxt-4.5.84.tar.gz", hash = "sha256:5bd072664785b20cd9bef4b57d6aa27b9ae504954043264ea03f96c366c607ad", size = 6213878, upload-time = "2026-09-24T11:04:11.26Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b8/87/f03c7407b84354ee2dfab6380b38c2b73fe8df0097f8d50d1ad0e0439d65/ccxt-4.5.82-py3-none-any.whl", hash = "sha256:45926162b5878199676d81ade7425aef0972b1ac8b09d5d70808a85d279f6838", size = 6627471, upload-time = "2026-09-21T13:28:58.047Z" },
+    { url = "https://files.pythonhosted.org/packages/c9/a2/1f6fd14591a951e608fe7afc8d77de6ef35434c2e430b4fff105ffb216b0/ccxt-4.5.84-py3-none-any.whl", hash = "sha256:b920f7d92c0fb62873a900c96ee2cfb76ec6ffeaa7343bf5be0cc01b9b2e9617", size = 6595518, upload-time = "2026-09-24T11:04:07.888Z" },
 ]
 
 [[package]]
@@ -1124,7 +1124,7 @@ visualization = [
 
 [package.metadata.requires-dev]
 data = [
-    { name = "ccxt", specifier = "==4.5.82" },
+    { name = "ccxt", specifier = "==4.5.84" },
     { name = "dask", specifier = "==2026.8.0" },
     { name = "duckdb", specifier = "==1.5.5" },
     { name = "narwhals", specifier = "==2.26.0" },
