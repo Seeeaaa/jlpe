@@ -57,11 +57,11 @@ defaults:
     shell: bash --noprofile --norc -euo pipefail {0}
 
 jobs:
-  # Shared extraction of pinned versions from the Dockerfile. Every check
-  # needs at least one of these; doing it once removes the four copies of
-  # grep logic that existed across the old workflows.
-  # Base image freshness: one job with a component matrix replaces the two
-  # near-identical check-python-version / check-uv-version workflows.
+  # Shared extraction of pinned versions from the Dockerfile, via the
+  # composite actions (read-python-version / read-uv-version) so no workflow
+  # or job repeats the grep logic. Base image freshness: one job with a
+  # component matrix replaces the two near-identical check-python-version /
+  # check-uv-version workflows.
   # CHECKS is normalized here (empty string means "all"): GitHub delivers an
   # empty dispatch input as null, and contains(null, x) evaluates on the
   # string "null", which broke selection in the first revision - every
@@ -80,11 +80,11 @@ jobs:
     outputs:
       checks: ${{ steps.norm.outputs.checks }}
       components: ${{ steps.norm.outputs.components }}
-      python_version: ${{ steps.extract.outputs.python_version }}
-      python_suffix: ${{ steps.extract.outputs.python_suffix }}
-      python_digest: ${{ steps.extract.outputs.python_digest }}
-      uv_version: ${{ steps.extract.outputs.uv_version }}
-      uv_digest: ${{ steps.extract.outputs.uv_digest }}
+      python_version: ${{ steps.pyver.outputs.version }}
+      python_suffix: ${{ steps.pyver.outputs.suffix }}
+      python_digest: ${{ steps.pyver.outputs.digest }}
+      uv_version: ${{ steps.uvver.outputs.version }}
+      uv_digest: ${{ steps.uvver.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -118,28 +118,13 @@ jobs:
           comp_json="$comp_json]"
           echo "components=$comp_json" >> "$GITHUB_OUTPUT"
 
-      - name: Extract pinned versions from Dockerfile
-        id: extract
-        run: |
-          py_line=$(grep '^FROM python:' Dockerfile)
-          py_full=$(echo "$py_line" | grep -oP '(?<=^FROM python:)[^@\s]+')
-          py_digest=""
-          if [[ "$py_line" == *"@"* ]]; then
-            py_digest="${py_line#*@}"
-            py_digest="${py_digest%% *}"
-          fi
-          echo "python_version=$(echo "$py_full" | grep -oP '^[0-9.]+')" >> "$GITHUB_OUTPUT"
-          echo "python_suffix=$(echo "$py_full" | sed -E 's/^[0-9.]+-//')" >> "$GITHUB_OUTPUT"
-          echo "python_digest=$py_digest" >> "$GITHUB_OUTPUT"
+      - name: Read pinned python version
+        id: pyver
+        uses: ./.github/actions/read-python-version
 
-          uv_line=$(grep '^FROM ghcr.io/astral-sh/uv:' Dockerfile)
-          echo "uv_version=$(echo "$uv_line" | grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+')" >> "$GITHUB_OUTPUT"
-          uv_digest=""
-          if [[ "$uv_line" == *"@"* ]]; then
-            uv_digest="${uv_line#*@}"
-            uv_digest="${uv_digest%% *}"
-          fi
-          echo "uv_digest=$uv_digest" >> "$GITHUB_OUTPUT"
+      - name: Read pinned uv version
+        id: uvver
+        uses: ./.github/actions/read-uv-version
 
   # Base image freshness: one job with a component matrix replaces the two
   # near-identical check-python-version / check-uv-version workflows.
