@@ -534,7 +534,7 @@ dataframe = [
 
 [[package]]
 name = "databricks-sdk"
-version = "0.142.0"
+version = "0.143.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "google-auth" },
@@ -542,9 +542,9 @@ dependencies = [
     { name = "requests" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cc/76/4edfbbe21307f3bbf702333a1c8f2476ad0ac175dd670d09771fe758dd31/databricks_sdk-0.142.0.tar.gz", hash = "sha256:2ffe26269a1eb5de4bcdf0bed5fda120a03962ef86d37e45da37a741b7b116c4", size = 1120420, upload-time = "2026-09-25T04:34:16.461Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/44/fc/6f491c77e1af3c286abeebc79a2337232f65cdb9530586f5c39f7ec1b8bf/databricks_sdk-0.143.0.tar.gz", hash = "sha256:77e092c6e0e3c2aec5de2df8ac16ee69c6a9f5fa7e32594f6ef66808396a5ee8", size = 1120890, upload-time = "2026-09-26T04:33:42.144Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/c6/53e272461642e373807b73593aac9f964d0bc3d1980b14b4e3c13bd928d1/databricks_sdk-0.142.0-py3-none-any.whl", hash = "sha256:bf278168e76a60f0918617682db653734b697cda1f623962f2e02c797d43d5f2", size = 1065416, upload-time = "2026-09-25T04:34:14.657Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/12/8e81ba33850ea45b015e54372b7d1aeab42315f552b2b2d55e8a31bc6802/databricks_sdk-0.143.0-py3-none-any.whl", hash = "sha256:7742d3e80fdabbc17ec1c718e1bbf600ac4f660e0063b5d43d32ca3387e74f15", size = 1065532, upload-time = "2026-09-26T04:33:39.949Z" },
 ]
 
 [[package]]
@@ -2066,11 +2066,11 @@ wheels = [
 
 [[package]]
 name = "platformdirs"
-version = "4.11.14"
+version = "4.11.15"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/72/72/2075f80b8de9992872715444e7088ec3b6eea2bc0e99521e1d6e562e382d/platformdirs-4.11.14.tar.gz", hash = "sha256:0e706ec0a73a4ec023d11496153a4b6607a672f4b5027c23c3aefa9c9288c523", size = 45301, upload-time = "2026-09-25T17:24:00.877Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5f/e0/7c20b5d0e0f147c40a934e8f9e9f717bd6e3e372c4d58ca5c2fcce2b1652/platformdirs-4.11.15.tar.gz", hash = "sha256:d7419e973b2b740d428200130f80c0e79304d1c71081001db911e15b26a3a6d4", size = 46059, upload-time = "2026-09-26T02:04:58.142Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dc/40/03f2c094178624d155b8d27a9b0c5ab1e39efa6cc9074b599e8c671b9db1/platformdirs-4.11.14-py3-none-any.whl", hash = "sha256:c1b1a1eab4f4d1b0eb81754593f1c38de88e84ebe6f93bf6714706a6759074b1", size = 26700, upload-time = "2026-09-25T17:23:59.443Z" },
+    { url = "https://files.pythonhosted.org/packages/84/83/246d3052d043683cc5f400ab5748bd07a99fbdf311dc771cfad7e3f9e7e0/platformdirs-4.11.15-py3-none-any.whl", hash = "sha256:84508421c77d3c6462e71dd8c0d2776c2ace0e94eb006dc4fd383bc1dcf5a176", size = 26689, upload-time = "2026-09-26T02:04:56.71Z" },
 ]
 
 [[package]]
