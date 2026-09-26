@@ -60,16 +60,24 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-install-project --all-groups && rm -rf $UV_CACHE_DIR
 
-# Dynamic OCI metadata. VERSION/REVISION/CREATED are passed by build.yml
-# from the stamped pyproject version, commit sha and UTC date; defaults stay
-# empty so local builds never carry misleading labels. These layers sit
-# AFTER the apt and uv sync layers on purpose: build.yml stamps VERSION on
-# every merge to main, and any ARG change invalidates its own layer and
-# everything below it. Placed at the top, that rebuilt the whole image on
-# every stamp; placed last, a fresh stamp only rewrites the cheap label
-# layer and the heavy system/dependency install cache survives. The uv sync
-# layer itself still misses by design whenever the stamp touches
-# pyproject.toml / uv.lock bytes.
+# The image version is COPYed AFTER the uv sync layer on purpose: it changes
+# on every stamp (build.yml writes a fresh timestamp into VERSION and pushes
+# a stamp commit), while pyproject.toml / uv.lock stay byte-stable. Placed
+# above the sync layer, a stamp would invalidate the COPY and rebuild the
+# 2.4 GB dependency layer daily; placed here, a stamp only rewrites this
+# cheap layer (and the label layer below). build.yml reads the tag form from
+# this file; the pyproject version field is a static placeholder (see there).
+COPY VERSION ./
+
+# Dynamic OCI metadata. REVISION/CREATED are passed by build.yml from the
+# commit sha and UTC date; the version label comes from the stamped VERSION
+# file (see the COPY above). ARG defaults stay empty so local builds never
+# carry misleading labels. These layers sit AFTER the apt and uv sync layers
+# on purpose: build.yml stamps VERSION on every merge to main, and any ARG
+# change invalidates its own layer and everything below it. Placed at the
+# top, that rebuilt the whole image on every stamp; placed last, a fresh
+# stamp only rewrites the cheap label layer and the heavy system/dependency
+# install cache survives.
 ARG VERSION=""
 ARG REVISION=""
 ARG CREATED=""
