@@ -70,12 +70,13 @@ jobs:
   versions:
     runs-on: ubuntu-latest
     # The stamp-date job in build.yml pushes a "[skip build]" commit that
-    # touches exactly pyproject.toml / uv.lock, which also matches this
-    # workflow's push paths filter above. Without this author guard, every
-    # stamp commit re-runs the full upstream check a minute after the push
-    # that already triggered it via the original PR. Skip the push path for
-    # the bot's own stamp commits, mirroring the "[skip build]" logic in
-    # build.yml; the scheduled and manual runs are unaffected.
+    # touches only the VERSION file, which does NOT match this workflow's
+    # push paths filter above (Dockerfile/pyproject.toml/uv.lock), so stamp
+    # commits do not re-run the upstream check at all. The author guard
+    # below is kept as a second line of defense: if the stamp ever starts
+    # touching tracked files that match the filter, the bot's own push is
+    # still skipped here, mirroring the "[skip build]" logic in build.yml;
+    # the scheduled and manual runs are unaffected.
     if: github.event_name != 'push' || github.event.head_commit.author.username != 'github-actions[bot]'
     outputs:
       checks: ${{ steps.norm.outputs.checks }}

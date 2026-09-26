@@ -51,12 +51,15 @@ jobs:
         id: filter
         with:
           filters: |
-            # Only these files define the actual image content.
+            # Only these files define the actual image content. VERSION
+            # carries the image version stamp and is content too: a human
+            # edit to it must trigger a build like any other content file.
             # Changes to .github/workflows/** must NOT trigger this.
             image:
               - 'Dockerfile'
               - 'pyproject.toml'
               - 'uv.lock'
+              - 'VERSION'
   # This is the only job in the pipeline that pushes directly to main
   # instead of going through a PR. This is intentional: it lets version
   # stamping, build, smoke-test, and publish happen atomically in one
@@ -113,17 +116,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Recompute the version date against whatever main is RIGHT NOW and
-          # commit it. Called once before the first push and again on every
-          # failed push, so each retry starts from a clean resync instead of
-          # replaying a stale commit over a moved main.
+          # Recompute the version stamp against whatever main is RIGHT NOW
+          # and commit it. Called once before the first push and again on
+          # every failed push, so each retry starts from a clean resync
+          # instead of replaying a stale commit over a moved main. The
+          # stamp writes ONLY the VERSION file: pyproject.toml / uv.lock no
+          # longer carry the image version (a static placeholder lives in
+          # pyproject), so a stamp changes no dependency bytes, does not run
+          # uv lock, and the heavy uv sync layer's cache key stays stable.
           stamp_and_commit() {
             python_version_full=$(grep -oP '(?<=^FROM python:)[^@\s]+' Dockerfile)
             prefix="${python_version_full/-/+}"
             new_version="${prefix}.$(date -u +%Y%m%d%H%M)"
-            sed -i "s/^version = \".*\"/version = \"${new_version}\"/" pyproject.toml
-            uv lock
-            git add pyproject.toml uv.lock
+            # prefix carries the pyproject form (plus after the python
+            # version); VERSION carries the tag form, so flip the first plus
+            # back to a dash. ${new_version/-/+} would be backwards: it
+            # would hit the dash inside "slim-trixie" and mangle the tag.
+            printf '%s\n' "${new_version/+/-}" > VERSION
+            git add VERSION
             git commit -m "$msg"
           }
           stamp_and_commit
@@ -134,13 +144,12 @@ jobs:
           # OUTSIDE this workflow while a run is mid-flight: another merge to
           # main (a Dependabot/enable-dep bump, or a second human PR merged in
           # the same window) can move main between this run's checkout and its
-          # own git push. Both sides then independently edit the same
-          # "version = ..." line with a DIFFERENT date, so a plain git rebase
-          # would hit a three-way merge conflict on that line and die instead
-          # of degrading. So on a failed push we reset hard to the freshest
-          # main and recompute the whole stamp from scratch -- each attempt
-          # starts clean rather than trying to reconcile two independent
-          # calculations of one line.
+          # own git push. Dependabot and enable-dep PRs never touch VERSION
+          # (only this stamp writes it), so the old three-way conflict on the
+          # stamped version line can no longer occur; a plain git rebase would
+          # now degrade gracefully. The reset is kept anyway because it is
+          # strictly safer: each attempt recomputes the stamp from fresh main
+          # instead of replaying a stale commit over a moved HEAD.
           pushed=false
           for attempt in 1 2 3; do
             if git push origin HEAD:main; then
@@ -191,14 +200,15 @@ jobs:
       - name: Warn if [skip build] suppressed an image-content change
         run: |
           # Diff the whole push range (before -> sha), not just HEAD^ HEAD:
-          # a multi-commit push can change pyproject.toml/uv.lock in an
-          # earlier commit while the head commit alone carries "[skip build]".
-          # fetch-depth: 0 makes github.event.before available for the range.
-          if git diff --quiet "${{ github.event.before }}" "${{ github.sha }}" -- pyproject.toml uv.lock; then
-            echo "Commit is marked [skip build] and does not touch pyproject.toml or uv.lock."
+          # a multi-commit push can change pyproject.toml/uv.lock/VERSION in
+          # an earlier commit while the head commit alone carries "[skip
+          # build]". fetch-depth: 0 makes github.event.before available for
+          # the range.
+          if git diff --quiet "${{ github.event.before }}" "${{ github.sha }}" -- pyproject.toml uv.lock VERSION; then
+            echo "Commit is marked [skip build] and does not touch pyproject.toml, uv.lock or VERSION."
             echo "No image content was skipped; nothing to do."
           else
-            echo "::warning::This commit is marked [skip build] but modifies pyproject.toml and/or uv.lock."
+            echo "::warning::This commit is marked [skip build] but modifies pyproject.toml, uv.lock and/or VERSION."
             echo "::warning::Image content changed WITHOUT a build, smoke test, or Docker Hub publish."
             echo "::warning::If this was unintended, push a follow-up commit without the marker,"
             echo "::warning::or re-run the pipeline via workflow_dispatch with force_push=true."
@@ -237,11 +247,18 @@ jobs:
         id: pyver
         uses: ./.github/actions/read-python-version
 
-      - name: Extract full version from pyproject.toml
+      - name: Extract full version from VERSION
         id: fullver
+        # The tag form (dashes, no plus) lives in VERSION; build.yml stamps
+        # it on every merge to main. Any local build without a stamped
+        # VERSION still works: the file carries the last stamped value.
         run: |
-          version=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml)
-          echo "tag=${version//+/-}" >> "$GITHUB_OUTPUT"
+          tag=$(cat VERSION)
+          if [ -z "$tag" ]; then
+            echo "::error::could not extract version from VERSION"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4
