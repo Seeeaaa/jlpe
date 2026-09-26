@@ -1,0 +1,45 @@
+name: Read pinned python version from Dockerfile
+description: >-
+  Extracts the pinned python base version from the Dockerfile FROM python:
+  line and exposes version, suffix, full-tag and digest outputs. Used by
+  several jobs and workflows instead of repeating the same grep logic in
+  each place.
+
+outputs:
+  version:
+    description: The python version (e.g. "3.13.15").
+    value: ${{ steps.read.outputs.version }}
+  suffix:
+    description: The base image suffix (e.g. "slim-trixie").
+    value: ${{ steps.read.outputs.suffix }}
+  full:
+    description: The full tag without digest (e.g. "3.13.15-slim-trixie").
+    value: ${{ steps.read.outputs.full }}
+  digest:
+    description: The pinned digest (empty when the pin has no @sha256 suffix).
+    value: ${{ steps.read.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read pinned python version
+      id: read
+      shell: bash
+      run: |
+        line=$(grep '^FROM python:' Dockerfile)
+        full=$(echo "$line" | grep -oP '(?<=^FROM python:)[^@\s]+')
+        if [ -z "$full" ]; then
+          echo "::error::could not extract python version from Dockerfile"
+          exit 1
+        fi
+        version=$(echo "$full" | grep -oP '^[0-9.]+')
+        suffix="${full#"${version}-"}"
+        digest=""
+        if [[ "$line" == *"@"* ]]; then
+          digest="${line#*@}"
+          digest="${digest%% *}"
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+        echo "full=$full" >> "$GITHUB_OUTPUT"
+        echo "digest=$digest" >> "$GITHUB_OUTPUT"

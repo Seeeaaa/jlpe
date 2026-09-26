@@ -8,6 +8,9 @@ outputs:
   version:
     description: The uv version pinned in the Dockerfile (e.g. "0.12.11").
     value: ${{ steps.read.outputs.version }}
+  digest:
+    description: The pinned digest of the uv base image (empty when the pin has no @sha256 suffix).
+    value: ${{ steps.read.outputs.digest }}
 
 runs:
   using: composite
@@ -16,9 +19,16 @@ runs:
       id: read
       shell: bash
       run: |
-        version=$(grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+' Dockerfile)
+        line=$(grep '^FROM ghcr.io/astral-sh/uv:' Dockerfile)
+        version=$(echo "$line" | grep -oP '(?<=^FROM ghcr\.io/astral-sh/uv:)[^@\s]+')
         if [ -z "$version" ]; then
           echo "::error::could not extract uv version from Dockerfile"
           exit 1
         fi
+        digest=""
+        if [[ "$line" == *"@"* ]]; then
+          digest="${line#*@}"
+          digest="${digest%% *}"
+        fi
         echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "digest=$digest" >> "$GITHUB_OUTPUT"
