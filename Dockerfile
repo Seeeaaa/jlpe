@@ -27,8 +27,11 @@ ENV UV_PYTHON_DOWNLOADS=never
 ENV PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
 
 # Cache-bust for the apt layer only: build.yml passes the UTC date, so this
-# ARG changes once a day and refreshes system packages without invalidating
-# the (much heavier) uv sync layers below.
+# ARG changes once a day and refreshes system packages. Invalidating the apt
+# layer also invalidates every layer below it, including the uv sync layer
+# (contrary to what this comment claimed before 2026-09) - that is the price
+# of daily security freshness; reordering the uv layers above the apt RUN is
+# the follow-up that would scope the daily rebuild to the apt layer alone.
 ARG APT_BUST=0
 # `upgrade` (not just `install`) is what actually ingests Debian security
 # fixes for packages that are already present in the base image (e.g.
@@ -48,7 +51,15 @@ ARG APT_BUST=0
 # alone works on the clean base: it depends only on gcc-14-base and libc6,
 # both already present in slim-trixie, so nothing from build-essential is
 # required to provision it.
-RUN apt-get update && \
+# The echo below is load-bearing, not cosmetic: BuildKit only includes a
+# declared ARG in a layer's cache key when the RUN actually references it,
+# so without it APT_BUST busts nothing and the apt layer freezes at its
+# build-day content (seen in practice: the frozen layer kept libpcre2-8-0
+# 10.46-1~deb13u2 while 10.46-1~deb13u3 was available, failing every
+# publish-gate run from Sep 29 2026 until this fix). The date value prints
+# harmlessly into the build log.
+RUN echo "$APT_BUST" && \
+    apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         libgomp1 git postgresql-client && \
