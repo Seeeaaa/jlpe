@@ -32,6 +32,7 @@ defaults:
 jobs:
   changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # [skip build] marks a commit made by stamp-date itself: without this
     # check, that commit's own push would re-trigger the whole pipeline for
     # content that was already built and pushed in the run that made it.
@@ -71,6 +72,7 @@ jobs:
     needs: changes
     if: github.event_name == 'push' && needs.changes.outputs.image == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     outputs:
       sha: ${{ steps.resolve.outputs.sha }}
     steps:
@@ -192,6 +194,7 @@ jobs:
       contains(github.event.head_commit.message, '[skip build]') &&
       github.event.head_commit.author.username != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -225,6 +228,7 @@ jobs:
       needs.stamp-date.result != 'cancelled' &&
       (github.event_name != 'push' || needs.changes.outputs.image == 'true')
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     outputs:
       python_version: ${{ steps.pyver.outputs.version }}
       full_version: ${{ steps.fullver.outputs.tag }}
@@ -352,6 +356,7 @@ jobs:
     needs: build
     if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -459,6 +464,7 @@ jobs:
          inputs.force_push)
       )
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Download image artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
