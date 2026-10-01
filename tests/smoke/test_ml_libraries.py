@@ -15,6 +15,7 @@ import catboost as cb
 
 
 def main() -> None:
+    np.random.seed(10)
     X = np.random.rand(100, 5)
     y = np.random.randint(0, 2, 100)
 
