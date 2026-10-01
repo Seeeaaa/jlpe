@@ -190,6 +190,16 @@ jobs:
             echo "::error::Failed to resolve latest version for ${{ matrix.component }}"
             exit 1
           fi
+          # Validate the resolved tag before it reaches sed -i / echo: registry
+          # data is untrusted external input, and only-emptiness checks let a
+          # shell metacharacter ride into the Dockerfile rewrite below. The
+          # python path is already tightly constrained by its grep -oE pattern
+          # (digits, dots and the suffix only); the uv path (jq tag_name) is
+          # the one this guard closes: digits and dots, optional leading v.
+          if ! printf '%s' "$latest" | grep -qE '^v?[0-9]+([.][0-9]+)*$'; then
+            echo "::error::latest version '$latest' failed format validation (expected ^v?[0-9.]+$)"
+            exit 1
+          fi
           echo "version=$latest" >> "$GITHUB_OUTPUT"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
 
@@ -197,6 +207,13 @@ jobs:
         id: latest_digest
         run: |
           digest=$(crane digest "${{ steps.latest.outputs.ref }}")
+          # Validate the digest before interpolation: a compromised registry
+          # response could otherwise ride into the Dockerfile FROM rewrite
+          # below via sed -i. Only sha256:<64 hex> is a legitimate digest.
+          if ! printf '%s' "$digest" | grep -qE '^sha256:[0-9a-f]{64}$'; then
+            echo "::error::digest failed format validation (expected sha256:<64 hex>): $digest"
+            exit 1
+          fi
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Compare and build PR title (${{ matrix.component }})
@@ -229,11 +246,20 @@ jobs:
 
       - name: Update Dockerfile (${{ matrix.component }})
         if: steps.compare.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
+        env:
+          NEW_REF: ${{ steps.compare.outputs.image_ref }}
+          NEW_DIGEST: ${{ steps.latest_digest.outputs.digest }}
+          CUR_VERSION_RE: ${{ steps.current.outputs.version_re }}
+          CUR_SUFFIX: ${{ steps.current.outputs.suffix }}
         run: |
+          # NEW_REF/NEW_DIGEST/CUR_* arrive via env indirection (validated in
+          # the steps above: tag against ^v?[0-9.]+$ and digest against
+          # ^sha256:<64 hex>), so untrusted registry data cannot break out of
+          # the sed patterns or ride into the Dockerfile rewrite unfiltered.
           if [ "${{ matrix.component }}" = "python" ]; then
-            sed -i -E "s|^FROM python:${{ steps.current.outputs.version_re }}-${{ steps.current.outputs.suffix }}(@sha256:[0-9a-f]+)?|FROM ${{ steps.compare.outputs.image_ref }}@${{ steps.latest_digest.outputs.digest }}|" Dockerfile
+            sed -i -E "s|^FROM python:${CUR_VERSION_RE}-${CUR_SUFFIX}(@sha256:[0-9a-f]+)?|FROM ${NEW_REF}@${NEW_DIGEST}|" Dockerfile
           else
-            sed -i "s|FROM ghcr.io/astral-sh/uv:.*|FROM ghcr.io/astral-sh/uv:${{ steps.latest.outputs.version }}@${{ steps.latest_digest.outputs.digest }} AS uv|" Dockerfile
+            sed -i "s|FROM ghcr.io/astral-sh/uv:.*|FROM ${NEW_REF}@${NEW_DIGEST} AS uv|" Dockerfile
           fi
 
       - name: Create pull request (${{ matrix.component }})
@@ -438,6 +464,14 @@ jobs:
           base="${name%%\[*}"
           resolved="${{ steps.pin.outputs.version }}"
           latest=$(curl -sf "https://pypi.org/pypi/${base}/json" | jq -r .info.version) || latest=""
+          # Loose format guard: this value feeds warnings and PR text only
+          # (never sed -i), so a single-line PEP 440-ish shape with no shell
+          # metacharacters is enough; a curl outage leaves it empty and the
+          # no-ceiling path below runs unchanged.
+          if [ -n "$latest" ] && ! printf '%s' "$latest" | grep -qE '^[A-Za-z0-9.+-]+$'; then
+            echo "::error::pypi latest version '$latest' failed format validation"
+            exit 1
+          fi
           if [ -n "$latest" ] && [ "$latest" != "$resolved" ]; then
             echo "ceiling=true" >> "$GITHUB_OUTPUT"
             echo "latest_version=$latest" >> "$GITHUB_OUTPUT"
