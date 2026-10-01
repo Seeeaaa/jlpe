@@ -20,6 +20,7 @@ permissions:
 jobs:
   update-lock:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     # Dependabot branch pushes are treated as fork PRs: they receive a
     # read-only GITHUB_TOKEN and NO repository secrets (PAT_FOR_BOTS is
     # empty). This job cannot regenerate and re-commit uv.lock via the PAT in
