@@ -69,6 +69,7 @@ jobs:
   # was selected. The normalize step guarantees a real csv string.
   versions:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # The stamp-date job in build.yml pushes a "[skip build]" commit that
     # touches only the VERSION file, which does NOT match this workflow's
     # push paths filter above (Dockerfile/pyproject.toml/uv.lock), so stamp
@@ -141,6 +142,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.versions.outputs.components) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -257,6 +259,7 @@ jobs:
     needs: versions
     if: contains(needs.versions.outputs.checks, 'intermediate')
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -306,6 +309,7 @@ jobs:
     needs: [versions, intermediate-deps]
     if: always() && contains(needs.versions.outputs.checks, 'probes') && needs.versions.result == 'success' && (needs.intermediate-deps.result == 'success' || needs.intermediate-deps.result == 'skipped')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
       uv_version: ${{ needs.versions.outputs.uv_version }}
@@ -344,6 +348,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.dependency-probes.outputs.matrix) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
