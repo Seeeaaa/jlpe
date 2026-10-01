@@ -60,7 +60,7 @@ visualization = [
     "seaborn==0.13.2",
     "plotly==7.1.0",
     "colorcet==3.2.1",
-    "geopandas==1.1.4",
+    "geopandas==1.2.0",
 ]
 
 jupyterlab = [
