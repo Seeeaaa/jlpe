@@ -14,8 +14,8 @@ jobs:
   update-branches:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
-      contents: write
+      pull-requests: read
+      contents: read
     steps:
       - name: Bot PAT available
         id: pat
