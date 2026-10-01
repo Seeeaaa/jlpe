@@ -617,12 +617,12 @@ wheels = [
 
 [[package]]
 name = "duckdb"
-version = "1.5.5"
+version = "1.5.6"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7d/19/e57151753576373c6696a12022648546cca6038e8833fda2908ee2342d9b/duckdb-1.5.5.tar.gz", hash = "sha256:72f33ee57ca7595b23957671a2cc7f7fe2be0ecc2d68f63abedcfcaa3a5c1238", size = 18066741, upload-time = "2026-07-22T10:55:17.819Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/0b/d65ea3be00ea79aa276a8388bec588a9cbf409ce637c6d306e5316210d15/duckdb-1.5.6.tar.gz", hash = "sha256:166a91dbfacfc0c9f08cc76c0243cb6d3d4296bfab5bad72a3cfb63140a5b7c8", size = 18032957, upload-time = "2026-09-28T13:38:37.978Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/cb/023c89f51978545b9fab318581bba0c457a58e7530d2d933e54ae7d8647c/duckdb-1.5.5-cp313-cp313-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:a736217825461732b5442d05a220f3da2e23a0dae114efbf08c9bf171b53098a", size = 19392147, upload-time = "2026-07-22T10:54:39.551Z" },
-    { url = "https://files.pythonhosted.org/packages/3e/c5/41bef391fb8b23dbc133c9f2ba016e7a7a8124513d2cc1b430f1897d87e4/duckdb-1.5.5-cp313-cp313-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:078e6a60dd8eedde5832f45422ca5c4a6b8c837aeabd8a56ca0b7d933f588053", size = 21511060, upload-time = "2026-07-22T10:54:42.788Z" },
+    { url = "https://files.pythonhosted.org/packages/31/e0/38095c8e140ecfbe847519ac07bcba94301b8fbb76b2870015e33e07f179/duckdb-1.5.6-cp313-cp313-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:364992ba1089a2b327391cfcb68fd0bd0ce9090cf293baef861a0ba6847abfee", size = 19454994, upload-time = "2026-09-28T13:38:11.836Z" },
+    { url = "https://files.pythonhosted.org/packages/70/21/61dd2876bbaa69cf77d7b5c620e52e8b25faae7096f4d2e4a812b52095d7/duckdb-1.5.6-cp313-cp313-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:644f54ce99b3b61844bc9a3fe80e0aecb1ea4084b1fffc4396d1569db6111679", size = 21568700, upload-time = "2026-09-28T13:38:14.258Z" },
 ]
 
 [[package]]
@@ -1137,7 +1137,7 @@ visualization = [
 data = [
     { name = "ccxt", specifier = "==4.5.84" },
     { name = "dask", specifier = "==2026.8.0" },
-    { name = "duckdb", specifier = "==1.5.5" },
+    { name = "duckdb", specifier = "==1.5.6" },
     { name = "narwhals", specifier = "==2.26.0" },
     { name = "numpy", specifier = "==2.5.3" },
     { name = "pandas", extras = ["performance"], specifier = "==3.0.6" },
