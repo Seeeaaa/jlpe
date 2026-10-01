@@ -11,6 +11,7 @@ import shap
 
 
 def main() -> None:
+    np.random.seed(10)
     X = np.random.rand(50, 4)
     y = X[:, 0] * 2 + X[:, 1]
     model = RandomForestRegressor(n_estimators=10, random_state=0).fit(X, y)
