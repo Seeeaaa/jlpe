@@ -545,7 +545,7 @@ dataframe = [
 
 [[package]]
 name = "databricks-sdk"
-version = "0.144.0"
+version = "0.145.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "google-auth" },
@@ -553,9 +553,9 @@ dependencies = [
     { name = "requests" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6f/a8/9e87c3bd6202f0cfcdcb744c5f8b84382f35943e6401650b954d0dc8892c/databricks_sdk-0.144.0.tar.gz", hash = "sha256:3a4beaf152f1ccbc1c46fdb59a7f43da7132b157875ef7d63e4b66ab8c606bc7", size = 1132484, upload-time = "2026-09-30T09:34:37.842Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/4b/c0b88e3dc541b5be75a08ae007ef4c7dbba9d6dcedc933219091403e826b/databricks_sdk-0.145.0.tar.gz", hash = "sha256:dd26a5d72197baf32e3fece1b263289264af9e0701a6f38860dc14ac5905aff2", size = 1133163, upload-time = "2026-10-01T04:37:40.897Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a2/77/7c9fad9208487d1cd8f69431b6ee9dda2fc61cc166f4dc20120684a883a6/databricks_sdk-0.144.0-py3-none-any.whl", hash = "sha256:8f73a8d917b7af5817f2ccb992da0ff80a2c534bbaa3027c597123a5f48ce679", size = 1077288, upload-time = "2026-09-30T09:34:36.348Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/20/04fd2c3aad4ce141ab931f80e2a205e8b483be216f041c528bf6e61de875/databricks_sdk-0.145.0-py3-none-any.whl", hash = "sha256:2af3f35df66f3af55f795d6c0ff78c532611b2c96bd894503d2cacb47a8de364", size = 1077907, upload-time = "2026-10-01T04:37:38.748Z" },
 ]
 
 [[package]]
@@ -2420,11 +2420,11 @@ wheels = [
 
 [[package]]
 name = "python-dotenv"
-version = "1.2.3"
+version = "1.2.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6a/53/ed9d74092561d4b01a2ef1349d52cdbc135e526c245f366b089cfca6de49/python_dotenv-1.2.3.tar.gz", hash = "sha256:a20a594dabeaa385725aa239d5244871c143ecb356add8a20fcf23773a6c3a35", size = 58945, upload-time = "2026-08-16T16:54:54.067Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/74/26/2fbeedb218a787a5eea551c7532cac4e009f83d689dd2faa0d0353473f86/python_dotenv-1.2.4.tar.gz", hash = "sha256:f0d53e69935a851c0dcc78f3ab7aaccd8cabef0b92382b576b824212902873c0", size = 60824, upload-time = "2026-10-01T05:36:10Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/17/c5c6b53ddc18f297992099b3d9ec16c855c0ccc83263a21fe4d1c625ec6c/python_dotenv-1.2.3-py3-none-any.whl", hash = "sha256:904552145e8bfed22162c09dab1c2b9b54fefa7b23ba780f4f26ca0316b0f0d9", size = 22780, upload-time = "2026-08-16T16:54:52.473Z" },
+    { url = "https://files.pythonhosted.org/packages/60/d1/38f3a3405989a89ac18390803e70c6ad7c7760da4f9b83cbeca0c44a0c72/python_dotenv-1.2.4-py3-none-any.whl", hash = "sha256:42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc", size = 23266, upload-time = "2026-10-01T05:36:08.633Z" },
 ]
 
 [[package]]
