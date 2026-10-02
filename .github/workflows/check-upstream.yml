@@ -344,8 +344,14 @@ jobs:
 
       - name: Build matrix from candidates.json
         id: set
+        env:
+          PROBE_ONLY: ${{ inputs.probe_only }}
         run: |
-          only="${{ inputs.probe_only }}"
+          # inputs.probe_only is dispatch-user controlled, so it arrives via
+          # env indirection (same pattern as the validate step): a value with
+          # a newline would otherwise inject a line into this script at step
+          # setup.
+          only="$PROBE_ONLY"
           if [ -n "$only" ]; then
             matrix=$(jq -c --arg only "$only" '[.[] | select(.name == $only)]' .github/dep-probes/candidates.json)
             # Fail loudly instead of silently producing an empty matrix -- an empty
@@ -377,6 +383,106 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Validate candidates.json entry
+        id: validate
+        env:
+          CAND_NAME: ${{ matrix.name }}
+          CAND_GROUP: ${{ matrix.group }}
+          CAND_VERSION: ${{ matrix.version }}
+          CAND_NOTE: ${{ matrix.note }}
+          CAND_SMOKE_TEST: ${{ matrix.smoke_test }}
+        run: |
+          # candidates.json entries are interpolated raw into shell and Python
+          # further down (uv add, sed -i, python -c, git mv), so a malformed
+          # value would execute on the runner instead of failing cleanly. The
+          # file is repo-controlled, but its other writers are unreviewed
+          # surfaces: a PR editing it lands here directly, and a manual edit
+          # can carry a stray shell metacharacter. Validate the same way the
+          # bump-base job validates registry data (the tag and digest guards
+          # in the "Get latest matching version" / "Resolve digest of latest"
+          # steps): strict format regex before any interpolation, fail loudly
+          # before the probe consumes the entry. The values arrive via env
+          # indirection, not script-text interpolation: GitHub expands template
+          # syntax anywhere in the script text (comments included) at step
+          # setup, before any check runs, so a value carrying a newline would
+          # inject a line into the script itself.
+          name="$CAND_NAME"
+          group="$CAND_GROUP"
+          version="$CAND_VERSION"
+          note="$CAND_NOTE"
+          smoke_test="$CAND_SMOKE_TEST"
+          # Reject newlines first: grep matches per line, so the whole-string
+          # anchored checks below pass a value whose first line matches the
+          # allowlist even when the rest of the value is an injected command.
+          # name / group / version / smoke_test are interpolated into the
+          # script text of the steps further down, so an embedded newline
+          # there would inject a line at step setup. NUL bytes cannot reach
+          # here: they cannot survive execve env passing, and the env block
+          # above fails the job outright on one.
+          newline_check() {
+            case "$1" in
+              *$'\n'*|*$'\r'*)
+                echo "::error::candidates.json '$2' contains a newline or carriage return"
+                exit 1
+                ;;
+            esac
+          }
+          newline_check "$name" name
+          newline_check "$group" group
+          newline_check "$version" version
+          newline_check "$note" note
+          newline_check "$smoke_test" smoke_test
+          if ! printf '%s' "$name" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._-]*$'; then
+            echo "::error::candidates.json 'name' failed format validation: '$name'"
+            exit 1
+          fi
+          if ! printf '%s' "$group" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._-]*$'; then
+            echo "::error::candidates.json 'group' failed format validation: '$group'"
+            exit 1
+          fi
+          # Flat allowlist: PEP 508-ish version punctuation, extras brackets and
+          # separators only. Everything that could break out of the double-quoted
+          # context the value is interpolated into downstream (double quote,
+          # dollar, backtick, backslash) is outside the class, so a match here
+          # proves the value is safe to interpolate. A nested-char alternation
+          # like \[[^]]*\] would NOT prove that: it accepts " and $ inside the
+          # brackets. The field is optional (entries without a version resolve
+          # latest), and an empty value is legitimate: the -n guard keeps grep
+          # from seeing zero input bytes, which match nothing and would fail
+          # every current candidate.
+          if [ -n "$version" ] && ! printf '%s' "$version" | grep -qE '^[][A-Za-z0-9.!=<>~^ ,;:+-]*$'; then
+            echo "::error::candidates.json 'version' failed format validation: '$version'"
+            exit 1
+          fi
+          # The note only feeds the Summary step, but it is interpolated into a
+          # double-quoted assignment there: a double quote closes the string, a
+          # dollar or backtick runs command substitution even inside double
+          # quotes. grep -F (literal, no regex) per character keeps the check
+          # unambiguous.
+          if printf '%s' "$note" | grep -qF '"' \
+            || printf '%s' "$note" | grep -qF '$' \
+            || printf '%s' "$note" | grep -qF '`'; then
+            echo "::error::candidates.json 'note' contains a shell metacharacter (double quote, dollar or backtick)"
+            exit 1
+          fi
+          # Strict path shape: exactly one filename segment under the probe
+          # tests directory, alnum/dot/underscore/hyphen only, .py suffix. A
+          # prefix check alone would let $(...) or a quote ride into the later
+          # git mv / file-existence test, where command substitution executes
+          # inside double quotes; the single-segment rule also makes '..'
+          # traversal impossible. Matches the check_<name>.py convention the
+          # probe scripts use.
+          if [ -n "$smoke_test" ]; then
+            if ! printf '%s' "$smoke_test" | grep -qE '^\.github/dep-probes/tests/[A-Za-z0-9][A-Za-z0-9._-]*\.py$'; then
+              echo "::error::candidates.json 'smoke_test' must match .github/dep-probes/tests/<name>.py (alnum/dot/underscore/hyphen only): '$smoke_test'"
+              exit 1
+            fi
+            if [ ! -f "$smoke_test" ]; then
+              echo "::error::candidates.json 'smoke_test' file not found: '$smoke_test'"
+              exit 1
+            fi
+          fi
 
       - name: Check if already enabled
         id: guard
@@ -586,9 +692,19 @@ jobs:
 
       - name: Summary
         if: always()
+        env:
+          CAND_NAME: ${{ matrix.name }}
+          CAND_NOTE: ${{ matrix.note }}
         run: |
+          # matrix.name / matrix.note arrive via env indirection: this step has
+          # if: always(), so it runs even when the validate step above FAILED,
+          # and its script text is interpolated at step setup regardless of
+          # that outcome. Direct interpolation here would let an unvalidated
+          # candidates.json value execute unconditionally; every other
+          # consumer of the entry is skipped by the job abort after a failed
+          # validate step, so it interpolates only already-validated values.
           {
-            echo "### ${{ matrix.name }}"
+            echo "### $CAND_NAME"
             if [ "${{ steps.guard.outputs.skip }}" = "true" ]; then
               echo "already enabled in pyproject.toml - remove it from candidates.json"
             elif [ "${{ steps.add.outcome }}" != "success" ]; then
@@ -598,9 +714,9 @@ jobs:
             elif [ "${{ steps.ceiling.outputs.ceiling }}" = "true" ]; then
               echo "update-availability check FAILED: resolved BELOW upstream latest ${{ steps.ceiling.outputs.latest_version }} (requirements conflict) - candidate stays queued, no PR opened"
             else
-              echo "compatible at upstream latest - PR opened (enable-dep-${{ matrix.name }})"
+              echo "compatible at upstream latest - PR opened (enable-dep-$(echo "$CAND_NAME" | tr -cd 'A-Za-z0-9._-'))"
             fi
-            note="${{ matrix.note }}"
+            note="$CAND_NOTE"
             if [ -n "$note" ]; then
               echo "note: $note"
             fi
