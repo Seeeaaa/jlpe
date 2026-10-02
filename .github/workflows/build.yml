@@ -269,7 +269,7 @@ jobs:
 
       - name: Get UTC date
         id: date
-        run: echo "date=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+        run: echo "date=$(date -u +%Y%m%d%H)" >> "$GITHUB_OUTPUT"
 
       - name: Get UTC timestamp for image CREATED label
         id: created
@@ -285,7 +285,7 @@ jobs:
           # Layer cache instead of full rebuild: PR builds (no stamp-date)
           # get a full hit; main pushes miss the uv sync layer by design
           # (date-stamped pyproject/uv.lock). APT_BUST refreshes only the
-          # apt layer daily so system security patches keep flowing.
+          # apt layer hourly so system security patches keep flowing.
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
