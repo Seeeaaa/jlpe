@@ -32,8 +32,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-install-project --all-groups && rm -rf $UV_CACHE_DIR
 
-# Cache-bust for the apt layer only: build.yml passes the UTC date, so this
-# ARG changes once a day and refreshes system packages. The heavy dependency
+# Cache-bust for the apt layer only: build.yml passes the UTC date-hour, so
+# this ARG changes hourly and refreshes system packages. The heavy dependency
 # layers sit ABOVE this RUN on purpose: the apt RUN is the last content
 # layer before the cheap label tail, so invalidating it re-runs only the
 # ~112 MB apt layer - the 2.4 GB uv sync layer's cache key depends only on
