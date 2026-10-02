@@ -26,12 +26,21 @@ ENV UV_CACHE_DIR=/opt/.cache/uv
 ENV UV_PYTHON_DOWNLOADS=never
 ENV PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
 
-# Cache-bust for the apt layer only: build.yml passes the UTC date, so this
-# ARG changes once a day and refreshes system packages. Invalidating the apt
-# layer also invalidates every layer below it, including the uv sync layer
-# (contrary to what this comment claimed before 2026-09) - that is the price
-# of daily security freshness; reordering the uv layers above the apt RUN is
-# the follow-up that would scope the daily rebuild to the apt layer alone.
+COPY --from=uv /uv /uvx /bin/
+
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN uv sync --locked --no-install-project --all-groups && rm -rf $UV_CACHE_DIR
+
+# Cache-bust for the apt layer only: build.yml passes the UTC date-hour, so
+# this ARG changes hourly and refreshes system packages. The heavy dependency
+# layers sit ABOVE this RUN on purpose: the apt RUN is the last content
+# layer before the cheap label tail, so invalidating it re-runs only the
+# ~112 MB apt layer - the 2.4 GB uv sync layer's cache key depends only on
+# the dependency bytes in pyproject.toml / uv.lock (and on the base image),
+# never on APT_BUST. This is the inverse of the pre-2026-10 order, where the
+# apt RUN sat above the uv layers and the daily bust rebuilt the whole venv
+# on every first-of-day build.
 ARG APT_BUST=0
 # `upgrade` (not just `install`) is what actually ingests Debian security
 # fixes for packages that are already present in the base image (e.g.
@@ -65,19 +74,13 @@ RUN echo "$APT_BUST" && \
         libgomp1 git postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=uv /uv /uvx /bin/
-
-WORKDIR /app
-COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-install-project --all-groups && rm -rf $UV_CACHE_DIR
-
-# The image version is COPYed AFTER the uv sync layer on purpose: it changes
-# on every stamp (build.yml writes a fresh timestamp into VERSION and pushes
-# a stamp commit), while pyproject.toml / uv.lock stay byte-stable. Placed
-# above the sync layer, a stamp would invalidate the COPY and rebuild the
-# 2.4 GB dependency layer daily; placed here, a stamp only rewrites this
-# cheap layer (and the label layer below). build.yml reads the tag form from
-# this file; the pyproject version field is a static placeholder (see there).
+# The image version is COPYed AFTER the apt layer on purpose: it changes on
+# every stamp (build.yml writes a fresh timestamp into VERSION and pushes a
+# stamp commit), while pyproject.toml / uv.lock stay byte-stable. Placed
+# above the apt or uv sync layers, a stamp would invalidate them and force
+# a heavy rebuild; placed here, a stamp only rewrites this cheap layer (and
+# the label layer below). build.yml reads the tag form from this file; the
+# pyproject version field is a static placeholder (see there).
 COPY VERSION ./
 
 # Dynamic OCI metadata. REVISION/CREATED are passed by build.yml from the
