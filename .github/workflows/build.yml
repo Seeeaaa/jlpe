@@ -81,15 +81,6 @@ jobs:
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}
 
-      - name: Read uv version from Dockerfile
-        id: uvver
-        uses: ./.github/actions/read-uv-version
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        with:
-          version: ${{ steps.uvver.outputs.version }}
-
       - name: Commit and push
         run: |
           msg="chore: sync uv.lock and bump image version date [skip build]"
@@ -283,9 +274,12 @@ jobs:
           context: .
           load: true
           # Layer cache instead of full rebuild: PR builds (no stamp-date)
-          # get a full hit; main pushes miss the uv sync layer by design
-          # (date-stamped pyproject/uv.lock). APT_BUST refreshes only the
-          # apt layer hourly so system security patches keep flowing.
+          # get a full hit. Main pushes miss the uv sync layer only when a
+          # dep/base bump changed pyproject.toml/uv.lock bytes: the stamp
+          # itself writes only the VERSION file (see stamp_and_commit), so a
+          # fresh stamp never invalidates the dependency layer. APT_BUST
+          # refreshes the apt layer hourly (last content layer before the
+          # cheap label tail) so system security patches keep flowing.
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |

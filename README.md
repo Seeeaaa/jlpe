@@ -9,7 +9,7 @@ I created this Docker image to provide a consistent, fully configured JupyterLab
 
 ### Versioning
 I try to update the image whenever a new library version or a new Python patch version is released. When a new library version conflicts with existing dependencies, I resolve the issue on a case-by-case basis. For example, when migrating to pandas 3.0, some libraries were excluded due to compatibility issues and may be re-added once resolved.
-- The image version lives in the `VERSION` file at the repository root, in the format `{python_version}+{image_variant}.{build_date}`, for example `3.13.14+slim-trixie.20260623` means Python 3.13.14, built on the `slim-trixie` Debian image. It is stamped automatically on every merge to main and embedded into the image as `/app/VERSION`.
+- The image version lives in the `VERSION` file at the repository root, in the format `{python_version}+{image_variant}.{build_timestamp}`, where the timestamp is UTC to minute precision (`%Y%m%d%H%M`), for example `3.13.14+slim-trixie.202606231605` means Python 3.13.14, built on the `slim-trixie` Debian image at 16:05 UTC. It is stamped automatically on every merge to main and embedded into the image as `/app/VERSION`.
 - The `version` field in `pyproject.toml` is a static placeholder required by the `[project]` table schema; it does not carry the image version.
 - Each Docker tag corresponds to a specific JLPE version.
 - The repository contains a `Dockerfile`, a `pyproject.toml`, a `uv.lock`, and a `VERSION`. Top-level dependency versions are pinned in `pyproject.toml`; `uv.lock` records the exact resolved versions of every dependency, including transitive ones, so the same `pyproject.toml` always produces the same environment.
