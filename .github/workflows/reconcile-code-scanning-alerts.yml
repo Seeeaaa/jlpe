@@ -96,13 +96,21 @@ jobs:
         # Fixed ref + fixed category: every upload replaces the same analysis
         # (refs/heads/main + the category above), which is what GitHub's
         # native dedupe needs - see the header comment for why these two
-        # parameters are load-bearing. PR runs are gated off so a
-        # paths-triggered test run never writes to the main analysis (the
-        # same reason the old upload-sarif step needed the push-path
-        # permission split before #193).
+        # parameters are load-bearing. ref and sha are required as a PAIR
+        # when either is provided: with ref alone the action falls back to
+        # the checkout path for the sha (seen in practice as "Both 'ref' and
+        # 'sha' are required if one of them is provided" - this workflow has
+        # no checkout step, so the fallback died and the upload failed).
+        # github.sha is the sha of THIS workflow run's main checkout, which
+        # is the commit the analysis documents; a schedule run checks out
+        # main's head, so the sha always lands on a real main commit.
+        # PR runs are gated off so a paths-triggered test run never writes
+        # to the main analysis (the same reason the old upload-sarif step
+        # needed the push-path permission split before #193).
         if: github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4
         with:
           sarif_file: current-scan.sarif
           ref: refs/heads/main
+          sha: ${{ github.sha }}
           category: .github/workflows/build.yml:build
