@@ -270,7 +270,7 @@ jobs:
           commit-message: "${{ steps.compare.outputs.pr_title }}"
           title: "${{ steps.compare.outputs.pr_title }}"
           body: |
-            ${{ steps.compare.outputs.pr_title }}.
+            Bumps the pinned base image in the Dockerfile (line 1-2) to the latest upstream release, with the new digest.
 
             New digest: `${{ steps.latest_digest.outputs.digest }}`
           branch: bump-${{ matrix.component }}-version
