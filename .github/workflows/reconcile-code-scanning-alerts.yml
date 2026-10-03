@@ -1,16 +1,39 @@
 name: Reconcile code-scanning alerts
 
-# Dismisses open Trivy image-scan alerts that no longer match the current
-# published image. The image scan writes a fresh finding per (digest, CVE,
-# package), so each build leaves dangling 'open' alerts even after the fix was
-# applied; this workflow is the automatic cleanup that closes them.
+# Keeps the Security tab in sync with the current published image. The daily
+# scan uploads the findings as a SARIF analysis on refs/heads/main under the
+# fixed category below, and GitHub's native code-scanning state management
+# does the rest: an alert whose finding is still present in the latest
+# analysis stays open, a finding that disappeared closes automatically as
+# "fixed", and a new finding opens a new alert - all without a manual
+# dismissal pass.
 #
-# An alert is dismissed as 'mitigated' when the current published image no
-# longer reports that (CVE, package, installed version) finding - meaning the
-# fix actually reached the image. Findings still present in the current scan
-# stay open, and new ones are surfaced only by the build logs (no SARIF
-# upload). Runs on every main push (new image is live) and daily to also
-# catch fixes published between builds.
+# History: before 2026-10 this workflow dismissed stale open alerts by hand,
+# matching each alert's (CVE, package, installed version) tuple against the
+# current scan. That closure loop is removed here: once uploads replace the
+# same analysis natively, the loop is redundant - and actively harmful,
+# because it dismisses alerts that the next upload re-opens.
+#
+# The category deliberately continues the pre-#193 analysis key
+# (.github/workflows/build.yml:build - the auto-derived value the old
+# upload-sarif step used before #193 removed it). Reusing it means the first
+# upload after this change REPLACES that last analysis instead of creating a
+# second, parallel alert set: the alerts open at cutover roll over natively
+# (kept open while their finding is still present, closed as "fixed" when
+# the fingerprint changed), instead of leaving a permanent duplicate set
+# behind. Analyses are keyed by (ref, category), so a fresh category here
+# would strand the existing alerts open forever - they are never replaced
+# by, nor deduplicated against, a different category.
+#
+# Fixed ref + fixed category are the two parameters that make the native
+# dedupe work: per-ref uploads (the image digest, in #193's case) were what
+# created the never-closing alert ledger that motivated removing SARIF in
+# the first place. The scan itself stays a single daily scan - only its
+# output format changed.
+#
+# Runs on every main push (new image is live) and daily to also catch fixes
+# published between builds. PR runs (paths-triggered test runs of this
+# file) never touch the tab: the upload step is gated off for pull_request.
 
 on:
   push:
@@ -21,13 +44,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  # security-events: read lets us list code scanning alerts; write lets us
-  # dismiss stale ones. contents read is implicit.
+  # security-events: write is required by upload-sarif; contents read is
+  # implicit. This permission predates this change - it was kept on this
+  # workflow through #193 and is now used by the upload again.
   contents: read
   security-events: write
-
-env:
-  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 defaults:
   run:
@@ -45,91 +66,43 @@ jobs:
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "image=vyxan/jlpe_image@$digest" >> "$GITHUB_OUTPUT"
 
-      - name: Trivy scan of current published image (JSON)
+      - name: Trivy scan of current published image (SARIF)
         id: scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.imgref.outputs.image }}
           severity: CRITICAL,HIGH
-          format: json
-          output: current-scan.json
+          format: sarif
+          output: current-scan.sarif
 
-      - name: Compute currently-present findings from the scan
-        id: current
+      - name: Refuse to upload an empty scan
+        # A zero-result scan means a trivy/DB outage, not a clean image (the
+        # image carries ~55 high/critical findings at the time of writing).
+        # Uploading it would close every open alert as "fixed" - the SARIF
+        # equivalent of the wipe-out the old tuple loop's empty-file guard
+        # protected against. Fail the run instead: the previous analysis
+        # stays in place and the daily schedule retries tomorrow. A
+        # malformed SARIF fails the jq call itself under errexit, which also
+        # blocks the upload.
         run: |
-          # Build the dedupe key as ("VulnerabilityID" + "|" + "PkgName" + "|" +
-          # "InstalledVersion") matching the alert message format produced by
-          # trivy's image scan upload. If the vulnerable-but-fixed-in-source trixie
-          # issue is not present in this scan, treat it as fixed and close the alert.
-          python - <<'PYEOF'
-          import json
-          with open("current-scan.json", encoding="utf-8") as f:
-              doc = json.load(f)
-          findings = set()
-          for result in doc.get("Results", []):
-              for vuln in result.get("Vulnerabilities", []):
-                  v = vuln.get("VulnerabilityID") or ""
-                  p = vuln.get("PkgName") or ""
-                  i = vuln.get("InstalledVersion") or ""
-                  if v and p and i:
-                      findings.add(f"{v}|{p}|{i}")
-          with open("current_findings.txt", "w", encoding="utf-8") as out:
-              out.write("\n".join(sorted(findings)))
-          print(f"current_findings.txt: {len(findings)} findings")
-          PYEOF
-
-      - name: Dismiss stale open alerts
-        run: |
-          # Verify any dismissed entry is fixable (version changed) before marking.
-          # We require two signals to avoid hiding alerts for still-present gaps:
-          # - current scan has no matching (CVE,package,installed_version) tuple
-          # - that finding was present in some previous scan (proved by the alert's existence)
-          # Dismiss with reason "mitigated", a real reason that means "fix was applied".
-          present=0
-          dismissed=0
-          KEEP=current_findings.txt
-          # Guard: an empty findings file signals a trivy failure, not an empty
-          # image. Refuse to dismiss anything in that case so a scan outage
-          # cannot wipe the whole open-alert set. The URL is quoted so the &
-          # in the query string cannot background the call, and the count is
-          # compared numerically (--jq length over a one-element-or-empty
-          # array): [ -n "0" ] is true in bash, so a string test would fail
-          # the run even when no alerts exist. The || echo 0 fallback covers
-          # a hard gh failure (network/auth): an empty count would otherwise
-          # make [ -gt ] print "integer expression expected" and, since if
-          # conditions are exempt from errexit, silently pass the guard.
-          # Defaulting to 0 is the safe direction: the guard only refuses
-          # dismissal when it confirms open alerts exist, so a missing count
-          # can never wipe the alert set.
-          open_alerts=$(gh api "/repos/$GITHUB_REPOSITORY/code-scanning/alerts?state=open&tool_name=Trivy&per_page=1" --jq 'length' || echo 0)
-          if [ ! -s "$KEEP" ] && [ "$open_alerts" -gt 0 ]; then
-            echo "::error::trivy scan yielded no findings but open alerts exist - refusing to dismiss"
+          results_count=$(jq '.runs[0].results | length' current-scan.sarif)
+          if [ "$results_count" -eq 0 ]; then
+            echo "::error::trivy scan yielded 0 results - refusing to upload (an empty DB would close all alerts as fixed)"
             exit 1
           fi
-          while IFS= read -r alert; do
-            num=$(echo "$alert" | jq -r '.number')
-            rule=$(echo "$alert" | jq -r '.rule.id')
-            # Extract the message once: pkg/inst/cve below parse the same
-            # field, and re-running jq per field costs three extra processes
-            # per alert (hundreds per run with a large open set).
-            msg=$(echo "$alert" | jq -r '.most_recent_instance.message.text // ""')
-            pkg=$(echo "$msg" | sed -n 's/^Package: \(.*\)$/\1/p')
-            inst=$(echo "$msg" | sed -n 's/^Installed Version: \(.*\)$/\1/p')
-            cve=$(echo "$msg" | sed -n 's/^Vulnerability \(CVE-[0-9-]*\|GHSA-[0-9a-z-]*\)$/\1/p')
-            if [ -z "$pkg" ] || [ -z "$inst" ] || [ -z "$cve" ]; then
-              echo "::notice::alert $num ($rule) has unparseable message -> left open"
-              continue
-            fi
-            key="$cve|$pkg|$inst"
-            if ! grep -Fxq "$key" "$KEEP"; then
-              gh api -X PATCH repos/$GITHUB_REPOSITORY/code-scanning/alerts/$num \
-                -f state=dismissed -f dismissed_reason="mitigated" \
-                -f dismissed_comment="Auto-closed by alert-reconciliation: current image no longer carries this finding after $GITHUB_REF ($GITHUB_REF_NAME)." \
-                >/dev/null && echo "dismissed alert $num: $key" && dismissed=$((dismissed+1)) \
-              || echo "::warning::failed to dismiss $num"
-            else
-              present=$((present+1))
-            fi
-          done < <(gh api "/repos/$GITHUB_REPOSITORY/code-scanning/alerts?state=open&tool_name=Trivy&per_page=100" --paginate --jq '.[] | @json')
-          echo ""
-          echo "Summary: dismissed $dismissed, still present $present"
+          echo "scan has $results_count finding(s); upload OK"
+
+      - name: Upload SARIF to the Security tab
+        # Fixed ref + fixed category: every upload replaces the same analysis
+        # (refs/heads/main + the category above), which is what GitHub's
+        # native dedupe needs - see the header comment for why these two
+        # parameters are load-bearing. PR runs are gated off so a
+        # paths-triggered test run never writes to the main analysis (the
+        # same reason the old upload-sarif step needed the push-path
+        # permission split before #193).
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4
+        with:
+          sarif_file: current-scan.sarif
+          ref: refs/heads/main
+          category: .github/workflows/build.yml:build
