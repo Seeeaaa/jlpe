@@ -23,7 +23,7 @@ concurrency:
 # uv.lock regardless of matrix outcomes.
 #
 # Manual runs: "Run workflow" shows two fields.
-#   checks     - csv subset of python,uv,intermediate,probes
+#   checks     - csv subset of python,uv,intermediate,probes,python-minor
 #                (empty = run everything, like the scheduled nightly run)
 #   probe_only - single candidate name for probes; used only when checks
 #                includes "probes" (replaces the old per-workflow input)
@@ -41,7 +41,7 @@ on:
   workflow_dispatch:
     inputs:
       checks:
-        description: "Checks to run: csv from python,uv,intermediate,probes (empty = all)"
+        description: "Checks to run: csv from python,uv,intermediate,probes,python-minor (empty = all)"
         required: false
         type: string
       probe_only:
@@ -95,7 +95,7 @@ jobs:
         run: |
           raw="${{ github.event_name == 'workflow_dispatch' && inputs.checks || '' }}"
           if [ -z "$raw" ]; then
-            raw_expanded="python,uv,intermediate,probes"
+            raw_expanded="python,uv,intermediate,probes,python-minor"
           else
             raw_expanded="$raw"
           fi
@@ -719,5 +719,268 @@ jobs:
             note="$CAND_NOTE"
             if [ -n "$note" ]; then
               echo "note: $note"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Python minor-version crossing (e.g. 3.13 -> 3.14). bump-base keeps the
+  # pinned MINOR fresh (3.13.15 -> 3.13.16 patch bumps, digest refreshes) but
+  # deliberately never proposes a new minor: a crossing swaps the whole wheel
+  # set (cp313 -> cp314), widens requires-python and re-resolves uv.lock,
+  # which a digest-refresh sed cannot validate. This job closes that gap with
+  # the same gate-before-PR contract as the dependency probes.
+  #
+  # Ladder semantics: docker-library may publish tags on several minors above
+  # the pin (3.14.x and 3.15.y slim-trixie). Candidates are evaluated in
+  # ASCENDING minor order, and the PR is opened for the FIRST one that
+  # passes - never a skip over a ready intermediate minor (each minor gets its
+  # own image and Docker Hub tag as a real artifact) and never a deadlock on
+  # the newest minor while an older one is ready (a fresh .0 release ships
+  # no cp315 wheels for the heavy stack; bump-to-top would gate on it for
+  # weeks while ignoring a fully ready 3.14). A higher minor is tried only
+  # when every lower candidate failed the gate; failures cost one uv sync
+  # (~5-8 min) each and the ladder keeps the job green either way (same
+  # reasoning as the probe update-availability gate: a red nightly for a
+  # known-unready crossing re-creates red-X desensitization).
+  #
+  # While a crossing PR is open, each later run re-evaluates from current
+  # main and force-updates the SAME branch (the pinned minor has not moved
+  # until merge), so open branches never accumulate: with the pin at 3.13
+  # the ladder always lands on migrate-python-3.14, and migrate-python-3.15
+  # becomes a candidate only after the 3.14 crossing merges.
+  python-minor:
+    needs: [versions, intermediate-deps]
+    # Same always() shape as the probe job: python-minor also rewrites
+    # uv.lock in its own workspace and opens a PR carrying it, so it runs
+    # after the intermediate-deps lock consumer (success or skipped) and
+    # never interleaves the two. The comma-delimited component builder in the
+    # versions job does NOT list python-minor, so a checks=python-minor
+    # dispatch selects only this job (the case pattern ",python," does not
+    # match "python-minor").
+    if: always() && contains(needs.versions.outputs.checks, 'python-minor') && needs.versions.result == 'success' && (needs.intermediate-deps.result == 'success' || needs.intermediate-deps.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Read current python pin
+        id: current
+        run: |
+          version="${{ needs.versions.outputs.python_version }}"
+          suffix="${{ needs.versions.outputs.python_suffix }}"
+          minor=$(echo "$version" | cut -d. -f1,2)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+          echo "minor=$minor" >> "$GITHUB_OUTPUT"
+
+      - name: Build ascending candidate ladder
+        id: ladder
+        run: |
+          # Same source as bump-base (docker-library official-images), but the
+          # grep spans ALL minors instead of being anchored to the current
+          # one. rc/pre-release tags cannot match the digits-only pattern.
+          # For every minor above the pin keep only its NEWEST patch tag
+          # (sort -V per minor), then order the minors ascending. Pure
+          # sort/awk/cut - no jq - so the pipeline is reproducible locally.
+          suffix="${{ steps.current.outputs.suffix }}"
+          current_minor="${{ steps.current.outputs.minor }}"
+          tags=$(curl -sf "https://raw.githubusercontent.com/docker-library/official-images/master/library/python" \
+            | grep "^Tags: " \
+            | grep -oE "[0-9]+\.[0-9]+\.[0-9]+-${suffix}" \
+            | sort -V -u) || true
+          if [ -z "$tags" ]; then
+            echo "::error::no ${suffix} tags found in docker-library official-images"
+            exit 1
+          fi
+          # one newest patch tag per minor above the pin, ascending by minor.
+          # Input order after sort -V is ascending by version, so awk's
+          # last-write-wins per minor keeps the highest patch. Minor compare
+          # is numeric, NOT string: a string compare would rank "3.9" above
+          # "3.10" (lexical) and the walk would try the wrong candidate
+          # first. The split must live in BEGIN: split() is a function, and
+          # a function call is not a valid pattern, so a pattern-position
+          # split() is a syntax error that silently degrades the filter.
+          ladder=$(echo "$tags" | sed "s/-${suffix}\$//" | awk -F. -v cur="$current_minor" '
+            BEGIN { split(cur, c, "."); ch = (c[1]+0)*100 + (c[2]+0) }
+            ($1+0)*100 + ($2+0) <= ch { next }
+            { minor[$1 "." $2] = $0 }
+            END { for (m in minor) print minor[m] }' | sort -V)
+          if [ -z "$ladder" ]; then
+            echo "no minors above ${current_minor} with a ${suffix} tag: nothing to cross"
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ladder (ascending):"; echo "$ladder" | sed "s/^/  candidate /"
+          # Outputs: newline-delimited list for the gate loop, count, and the
+          # first (nearest) candidate for messages.
+          first=$(echo "$ladder" | head -1)
+          echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+          echo "ladder<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$ladder" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "count=$(echo "$ladder" | wc -l)" >> "$GITHUB_OUTPUT"
+          echo "first=$first" >> "$GITHUB_OUTPUT"
+
+      - name: Install crane
+        if: steps.ladder.outputs.up_to_date == 'false'
+        uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
+
+      - name: Install uv
+        if: steps.ladder.outputs.up_to_date == 'false'
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: ${{ needs.versions.outputs.uv_version }}
+
+      - name: Walk the ladder until a candidate passes
+        id: walk
+        if: steps.ladder.outputs.up_to_date == 'false' && github.event_name != 'pull_request'
+        env:
+          LADDER: ${{ steps.ladder.outputs.ladder }}
+          CURRENT_MINOR: ${{ steps.current.outputs.minor }}
+          SUFFIX: ${{ steps.current.outputs.suffix }}
+        run: |
+          # Ascending walk. Per candidate: resolve+validate the digest, apply
+          # the pin rewrites, then run the two gates (resolve+install from
+          # prebuilt wheels; top-level import contract). The FIRST candidate
+          # that passes both is written to the outputs and the loop exits.
+          # A failed candidate is reverted with git checkout -- (the runner
+          # tree is expendable) and the next one starts from clean pins.
+          # Everything is captured into $results for the Summary; a hard
+          # error (bad digest, curl outage) marks the candidate failed and
+          # the walk continues - the job stays green unless EVERY candidate
+          # fails, which is the queued state, not a nightly red.
+          results=""
+          chosen=""
+          chosen_tag=""
+          chosen_digest=""
+          chosen_title=""
+          old_minor="$CURRENT_MINOR"
+          old_minor_re="${old_minor//./\\.}"
+          suffix="$SUFFIX"
+          while IFS= read -r new_version; do
+            new_minor=$(echo "$new_version" | cut -d. -f1,2)
+            new_tag="${new_version}-${suffix}"
+            echo "=== candidate python:${new_tag} ==="
+            verdict="gate FAILED (resolve/install from prebuilt wheels)"
+            # digest: resolve + format-validate (same guard as bump-base;
+            # untrusted registry data must not reach sed unfiltered)
+            digest=$(crane digest "python:${new_tag}" 2>/dev/null) || {
+              verdict="digest resolution failed"
+              echo "::warning::python:${new_tag}: $verdict"
+              results="${results}${new_minor}|${verdict}"$'\n'
+              continue
+            }
+            if ! printf '%s' "$digest" | grep -qE '^sha256:[0-9a-f]{64}$'; then
+              verdict="digest failed format validation"
+              echo "::warning::python:${new_tag}: $verdict ($digest)"
+              results="${results}${new_minor}|${verdict}"$'\n'
+              continue
+            fi
+            if ! printf '%s' "$new_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              verdict="version failed format validation"
+              echo "::warning::python:${new_tag}: $verdict ($new_version)"
+              results="${results}${new_minor}|${verdict}"$'\n'
+              continue
+            fi
+            # pin rewrites (env-indirected validated values, same as
+            # bump-base; README rules are boundary-guarded: the historical
+            # versioning example says "Python 3.13.14" and a bare
+            # "Python 3\.13" match would mangle it into "Python 3.14.14")
+            next_minor=$(echo "$new_minor" | awk -F. '{print $1 "." $2 + 1}')
+            sed -i -E "s|^FROM python:${old_minor_re}\.[0-9]+-${suffix}(@sha256:[0-9a-f]+)?|FROM python:${new_tag}@${digest}|" Dockerfile
+            sed -i -E "s|^requires-python = \"[^\"]*\"|requires-python = \">=${new_minor},<${next_minor}\"|" pyproject.toml
+            sed -i -E -e "/lgbm_gpu/!s|${old_minor_re}\.x|${new_minor}.x|g" -e "/lgbm_gpu/!s@Python ${old_minor_re}([^.0-9]|$)@Python ${new_minor}\1@g" README.md
+            # gate 1: the full pinned stack resolves and installs from
+            # prebuilt wheels under the new window. --no-build is the image's
+            # no-compiler contract: the runner has a toolchain, the image
+            # does not, so a source-only package would silently build here
+            # and then break the real image build. uv downloads the CPython
+            # matching the new window automatically.
+            if uv lock && uv sync --locked --all-groups --no-install-project --no-build; then
+              # gate 2: same top-level import contract the in-container
+              # smoke loop enforces, at gate scope. The full smoke suite
+              # runs against the crossing PR's own image build in build.yml.
+              if uv run --locked --all-groups python -P tests/smoke/test_all_top_level_imports.py; then
+                chosen="$new_version"
+                chosen_tag="$new_tag"
+                chosen_digest="$digest"
+                chosen_title="build(deps): migrate python from ${old_minor} to ${new_minor}"
+                results="${results}${new_minor}|gate passed"$'\n'
+                echo "candidate python:${new_tag} passed both gates"
+                break
+              else
+                verdict="gate FAILED (top-level import contract)"
+                echo "::warning::python:${new_tag}: $verdict"
+                results="${results}${new_minor}|${verdict}"$'\n'
+              fi
+            else
+              echo "::warning::python:${new_tag}: $verdict"
+              results="${results}${new_minor}|${verdict}"$'\n'
+            fi
+            # revert this candidate's rewrites before the next attempt
+            git checkout -- Dockerfile pyproject.toml README.md uv.lock 2>/dev/null || true
+          done < <(echo "$LADDER")
+          if [ -n "$results" ]; then
+            {
+              echo "results<<EOF"
+              printf '%s' "$results"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "$chosen" ]; then
+            echo "chosen=$chosen" >> "$GITHUB_OUTPUT"
+            echo "chosen_tag=$chosen_tag" >> "$GITHUB_OUTPUT"
+            echo "chosen_digest=$chosen_digest" >> "$GITHUB_OUTPUT"
+            echo "chosen_minor=$(echo "$chosen" | cut -d. -f1,2)" >> "$GITHUB_OUTPUT"
+            echo "chosen_title=$chosen_title" >> "$GITHUB_OUTPUT"
+          fi
+          echo "walk complete: chosen=${chosen:-none}"
+
+      - name: Open crossing pull request
+        if: steps.ladder.outputs.up_to_date == 'false' && github.event_name != 'pull_request' && steps.walk.outputs.chosen != ''
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          token: ${{ secrets.PAT_FOR_BOTS }}
+          add-paths: |
+            Dockerfile
+            pyproject.toml
+            uv.lock
+            README.md
+          commit-message: "${{ steps.walk.outputs.chosen_title }}"
+          title: "${{ steps.walk.outputs.chosen_title }}"
+          body: |
+            Automated python minor-version crossing opened by the python-minor ladder in check-upstream.yml: the pinned base image moves to python:${{ steps.walk.outputs.chosen_tag }} (digest pinned) and the requires-python window widens to the new minor, so uv.lock re-resolves onto the new interpreter's wheel set.
+
+            Candidates above the pin are evaluated in ascending minor order and this PR carries the first one that passed both gates - never a skip over a ready intermediate minor, never a deadlock on the newest minor while an older one is ready. Gate evidence from the run that opened this PR: `uv lock` resolved the full pinned stack under the widened window, `uv sync --locked --all-groups --no-install-project --no-build` installed every locked package from prebuilt wheels (--no-build mirrors the image's no-compiler constraint on a runner that has one), and the top-level import contract (tests/smoke/test_all_top_level_imports.py) passed on the new CPython.
+
+            Everything else is owned by existing automation: stamp-date derives the new version prefix from the Dockerfile FROM line, the build.yml smoke suite (all tests/smoke scripts, JupyterLab boot, kernel registration, extension resolution) runs against this PR's built image before merge, and README's feature line and supported-tags table are updated to the new minor placeholder.
+
+            While this PR is open, each later nightly python-minor run re-evaluates from current main and force-updates this branch with the fresh patch tag and digest, so the PR never goes stale.
+          branch: migrate-python-${{ steps.walk.outputs.chosen_minor }}
+          labels: dependencies,docker
+          delete-branch: true
+
+      - name: Summary
+        if: always()
+        env:
+          RESULTS: ${{ steps.walk.outputs.results }}
+        run: |
+          {
+            echo "### python minor crossing"
+            if [ "${{ steps.ladder.outputs.up_to_date }}" = "true" ]; then
+              echo "pinned minor is the newest upstream: nothing to cross"
+            elif [ -z "${{ steps.walk.outputs.chosen }}" ] && [ "${{ steps.ladder.outputs.up_to_date }}" != "false" ]; then
+              echo "upstream discovery failed - see the job log"
+            elif [ -z "${{ steps.walk.outputs.chosen }}" ]; then
+              echo "every candidate failed the gate: crossing stays queued, no PR opened, nightly re-verification"
+            else
+              echo "gate passed for python:${{ steps.walk.outputs.chosen_tag }}: PR opened (migrate-python-$(echo "${{ steps.walk.outputs.chosen }}" | cut -d. -f1,2))"
+            fi
+            if [ -n "$RESULTS" ]; then
+              echo ""
+              echo "| candidate | verdict |"
+              echo "| - | - |"
+              printf '%s\n' "$RESULTS" | while IFS='|' read -r minor verdict; do
+                [ -n "$minor" ] && echo "| python ${minor} | ${verdict} |"
+              done
             fi
           } >> "$GITHUB_STEP_SUMMARY"
