@@ -44,7 +44,26 @@ jobs:
               state: "open",
               base: "main",
             });
+            // Branches owned by create-pull-request (intermediate-deps,
+            // bump-base, enable-dep probes, python-minor crossings) are
+            // rebuilt from a fresh origin/main on every run of their parent
+            // workflow: create-pull-request resets the branch to current
+            // main and force-pushes the regenerated content, so merging main
+            // into them adds nothing and only opens a race window. Both
+            // workflows trigger on the same push to main - while the parent
+            // job holds a fetched ref of the branch (preparing its
+            // force-with-lease push), this merge moves the remote ref and
+            // the push dies with "cannot lock ref ... is at X but expected
+            // Y" (seen 2026-10-06: intermediate-deps vs this workflow on
+            // upgrade-intermediate-deps, both fired by the #265 merge).
+            // Skip them; dependabot branches keep receiving the merge.
+            const CPR_BRANCH_RE =
+              /^(upgrade-intermediate-deps|bump-(python|uv)-version|enable-dep-[^/]+|migrate-python-[^/]+)$/;
             for (const pr of prs) {
+              if (CPR_BRANCH_RE.test(pr.head.ref)) {
+                console.log(`Skipped PR #${pr.number}: branch '${pr.head.ref}' is owned by create-pull-request and rebuilt from main on every run`);
+                continue;
+              }
               if (isTestRun) {
                 console.log(`[test run] would update PR #${pr.number}`);
                 continue;
