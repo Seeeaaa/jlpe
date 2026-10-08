@@ -2,7 +2,7 @@
 I created this Docker image to provide a consistent, fully configured JupyterLab environment across multiple machines.
 
 ## Features
-- **Python version**: based on the official `python:3.13.x-slim-trixie` Docker image
+- **Python version**: based on the official `python:3.12.x-slim-trixie` Docker image
 - **Package manager**: [uv](https://github.com/astral-sh/uv)
 - **Notebook IDE**: [JupyterLab](https://github.com/jupyterlab/jupyterlab)
 - **Libraries:** data manipulation, visualization, and machine learning
@@ -17,7 +17,7 @@ I try to update the image whenever a new library version or a new Python patch v
 ### Supported tags
 |Tag|Python|Package manager|Description|
 |-|-|-|-|
-|`latest`, `3.13.x`|`python:3.13.x-slim-trixie`|`uv`|Full environment built on `Python 3.13` with `uv`|
+|`latest`, `3.12.x`|`python:3.12.x-slim-trixie`|`uv`|Full environment built on `Python 3.12` with `uv`|
 |`lgbm_gpu`|`python:3.13.x-slim-trixie`|`uv`|*(outdated)* Full environment built with GPU-compatible `LGBM` framework|
 
 For a complete list of dependencies and their versions, refer to `pyproject.toml` in [JLPE GitHub repository](https://github.com/Seeeaaa/jlpe).
