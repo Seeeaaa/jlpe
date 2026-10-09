@@ -19,6 +19,20 @@ def main() -> None:
         df, column_id="id", column_sort="time",
         default_fc_parameters=MinimalFCParameters(),
         disable_progressbar=True,
+        # Serial extraction on purpose. The default (n_jobs = cpu count)
+        # routes through MultiprocessingDistributor, whose worker pool broke
+        # on CPython 3.14: the default Linux start method changed from fork
+        # to forkserver, and forkserver/spawn workers re-import __main__ by
+        # path. This harness pipes the test via stdin (docker exec -i
+        # python - < script), so __main__ lives at '<stdin>' and the worker
+        # dies with FileNotFoundError trying to import '/app/<stdin>'
+        # (seen on the migrate-python-3.14 PRs). Switching the start method
+        # does not help: spawn re-imports __main__ the same way. n_jobs=1
+        # selects tsfresh's MapDistributor, which still exercises the full
+        # feature-extraction path (chunking, calculators, the pandas
+        # round-trip) without any multiprocessing, matching the smoke
+        # contract: deterministic, hermetic, API-surface integrity.
+        n_jobs=1,
     )
     assert not features.empty
     print("tsfresh: OK")
