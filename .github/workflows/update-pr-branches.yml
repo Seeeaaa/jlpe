@@ -6,6 +6,20 @@ on:
     paths:
       - ".github/workflows/update-pr-branches.yml"
   workflow_dispatch:
+  # The completion of check-upstream is the moment the CPR-branch safe-merge
+  # window OPENS: the push-to-main runs of both workflows overlap (same
+  # event), so the push-triggered run of this workflow always sees the owner
+  # in_progress and correctly skips (race window). The stamp commit then
+  # lands in main (VERSION-only) while the owner is still running - its
+  # rebuilt CPR branches do not contain the stamp and go 1-behind, but the
+  # stamp push fires this workflow while the owner is STILL running, so it
+  # skips again. Without this trigger nobody fires after the owner finishes,
+  # and the branches stay out-of-date until the next push or the nightly.
+  # workflow_run fires on the owner's completion, exactly when the merge
+  # becomes safe.
+  workflow_run:
+    types: [completed]
+    workflows: ["Check upstream drift"]
 permissions:
   contents: read
   pull-requests: read
@@ -24,6 +38,16 @@ jobs:
     permissions:
       pull-requests: read
       contents: read
+      # actions: read is required by the CPR-branch safe-merge: it queries
+      # in-flight runs of check-upstream.yml. NOTE: this job-level block
+      # REPLACES the workflow-level permissions block entirely, so the grant
+      # must live HERE - a workflow-level-only grant is dead weight the job
+      # scope silently drops (the safe-merge kept working via the PAT's own
+      # permissions, but the GITHUB_TOKEN fallback path would lose the
+      # query, throw, and degrade the running-owner flag to falsy - the
+      # exact race #274 closed). If this permission is ever removed, remove
+      # the safe-merge too.
+      actions: read
     steps:
       - name: Bot PAT available
         id: pat
