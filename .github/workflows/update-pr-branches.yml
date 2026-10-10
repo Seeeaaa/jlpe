@@ -9,6 +9,13 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  # actions: read is required by the CPR-branch safe-merge below: it queries
+  # in-flight runs of check-upstream.yml to detect the owner's race window.
+  # Without it the query throws, and the failure mode is NOT benign: a thrown
+  # error would leave the ownerRunning flag falsy and the script would merge
+  # into CPR branches WHILE the owner is running - exactly the race #274
+  # closed. If this permission is ever removed, remove the safe-merge too.
+  actions: read
 
 jobs:
   update-branches:
@@ -59,9 +66,70 @@ jobs:
             // Skip them; dependabot branches keep receiving the merge.
             const CPR_BRANCH_RE =
               /^(upgrade-intermediate-deps|bump-(python|uv)-version|enable-dep-[^/]+|migrate-python-[^/]+)$/;
+            // The skip above is what keeps the force-with-lease race closed
+            // (#274), but it left a gap: a CPR-owned branch goes stale (1+
+            // commits behind main) whenever main moves after the branch was
+            // last rebuilt - most often by the stamp-date commit that lands
+            // a minute after every merge (VERSION-only, does not re-trigger
+            // check-upstream because VERSION is not in its push paths). With
+            // strict branch protection the PR then shows "out-of-date" and
+            // blocks the merge until the nightly run rebuilds the branch.
+            // Closing the gap without reopening the race: merge main into a
+            // CPR branch ONLY while its owning workflow is not running. The
+            // race needs the merge to land in the window between the
+            // owner's fetch and its force-with-lease push; while no run of
+            // the owner workflow is queued or in progress, no such window
+            // can exist and the merge is safe - it can never collide with
+            // anything. When the owner later runs, it resets the branch to
+            // current main anyway (the merge commit is simply discarded).
+            async function ownerIsRunning() {
+              // In-flight runs of the owner workflow = queued + in_progress.
+              // Completed runs do not matter: a finished job has either
+              // pushed already (branch is current) or failed/skipped (the
+              // merge below is exactly the healing it needs).
+              for (const status of ["queued", "in_progress"]) {
+                const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: "check-upstream.yml",
+                  status: status,
+                  per_page: 100,
+                });
+                if (runs.length > 0) {
+                  console.log(`owner workflow check-upstream.yml has ${runs.length} run(s) with status ${status}`);
+                  return true;
+                }
+              }
+              return false;
+            }
+            const ownerRunning = isTestRun ? false : await ownerIsRunning();
             for (const pr of prs) {
               if (CPR_BRANCH_RE.test(pr.head.ref)) {
-                console.log(`Skipped PR #${pr.number}: branch '${pr.head.ref}' is owned by create-pull-request and rebuilt from main on every run`);
+                if (ownerRunning) {
+                  console.log(`Skipped PR #${pr.number}: CPR branch '${pr.head.ref}', owner workflow currently running (race window open)`);
+                  continue;
+                }
+                if (isTestRun) {
+                  console.log(`[test run] would update CPR PR #${pr.number} (owner idle: safe to merge main into '${pr.head.ref}')`);
+                  continue;
+                }
+                // Safe window: owner idle. Merge main into the CPR branch to
+                // clear out-of-date. create-pull-request discards this
+                // merge on its next run (reset to main + force-push), so the
+                // merge carries zero content risk; it only makes the PR
+                // mergeable now instead of at the next nightly run.
+                try {
+                  await github.rest.repos.merge({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    base: pr.head.ref,
+                    head: "main",
+                    commit_message: "chore: merge main into PR branch [dependabot skip]",
+                  });
+                  console.log(`Updated CPR PR #${pr.number} (owner idle): branch '${pr.head.ref}' now current with main`);
+                } catch (e) {
+                  console.log(`Skipped CPR PR #${pr.number}: ${e.message}`);
+                }
                 continue;
               }
               if (isTestRun) {
