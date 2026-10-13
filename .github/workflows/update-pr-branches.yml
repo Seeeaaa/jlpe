@@ -76,7 +76,8 @@ jobs:
               base: "main",
             });
             // Branches owned by create-pull-request (intermediate-deps,
-            // bump-base, enable-dep probes, python-minor crossings) are
+            // bump-base, enable-dep probes, python-minor crossings, and
+            // the wake-dependabot stall watchdog) are
             // rebuilt from a fresh origin/main on every run of their parent
             // workflow: create-pull-request resets the branch to current
             // main and force-pushes the regenerated content, so merging main
@@ -89,7 +90,7 @@ jobs:
             // upgrade-intermediate-deps, both fired by the #265 merge).
             // Skip them; dependabot branches keep receiving the merge.
             const CPR_BRANCH_RE =
-              /^(upgrade-intermediate-deps|bump-(python|uv)-version|enable-dep-[^/]+|migrate-python-[^/]+)$/;
+              /^(upgrade-intermediate-deps|bump-(python|uv)-version|enable-dep-[^/]+|migrate-python-[^/]+|wake-dependabot)$/;
             // The skip above is what keeps the force-with-lease race closed
             // (#274), but it left a gap: a CPR-owned branch goes stale (1+
             // commits behind main) whenever main moves after the branch was
@@ -107,21 +108,32 @@ jobs:
             // anything. When the owner later runs, it resets the branch to
             // current main anyway (the merge commit is simply discarded).
             async function ownerIsRunning() {
-              // In-flight runs of the owner workflow = queued + in_progress.
+              // In-flight runs of an owner workflow = queued + in_progress.
               // Completed runs do not matter: a finished job has either
               // pushed already (branch is current) or failed/skipped (the
-              // merge below is exactly the healing it needs).
+              // merge below is exactly the healing it needs). TWO owner
+              // workflows exist now: check-upstream.yml owns the nightly
+              // CPR families and wake-dependabot.yml owns the watchdog's
+              // wake PR. A run of EITHER closes the race window for all
+              // CPR branches: skipping a healing merge while the other
+              // owner runs only delays it by minutes (the next main push
+              // or owner completion re-fires this workflow), while a
+              // merge landing inside any owner's fetch/push window can
+              // kill its force-with-lease push (the #274 race).
+              const OWNER_WORKFLOWS = ["check-upstream.yml", "wake-dependabot.yml"];
               for (const status of ["queued", "in_progress"]) {
-                const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  workflow_id: "check-upstream.yml",
-                  status: status,
-                  per_page: 100,
-                });
-                if (runs.length > 0) {
-                  console.log(`owner workflow check-upstream.yml has ${runs.length} run(s) with status ${status}`);
-                  return true;
+                for (const workflow_id of OWNER_WORKFLOWS) {
+                  const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    workflow_id: workflow_id,
+                    status: status,
+                    per_page: 100,
+                  });
+                  if (runs.length > 0) {
+                    console.log(`owner workflow ${workflow_id} has ${runs.length} run(s) with status ${status}`);
+                    return true;
+                  }
                 }
               }
               return false;
