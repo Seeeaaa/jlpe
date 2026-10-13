@@ -2,6 +2,11 @@ version: 2
 # Any change to this file triggers an immediate out-of-band Dependabot
 # update run for every ecosystem listed below. Kept as a recovery hook:
 # editing this file wakes the daily schedule if it ever stalls silently.
+# Wake-up touch 2026-10-13: the schedule had stalled since 2026-10-09
+# 23:31 UTC, when the uv update job errored proposing the pyarrow 26.0.0
+# bump (unsatisfiable against mlflow 3.17.x's pyarrow<26 cap; upstream
+# fix pending, dependabot-core#13892). No ignore rules by design: every
+# dependency keeps its daily evaluation.
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
