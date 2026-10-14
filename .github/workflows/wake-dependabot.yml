@@ -1,0 +1,134 @@
+name: Wake Dependabot schedule
+
+# Recovery automation for the Dependabot update schedule. One errored
+# update job (the uv updater classifies an unsatisfiable version
+# proposal as job-fatal dependency_file_not_resolvable; upstream fix
+# pending, dependabot-core#13892) makes GitHub drop ALL update jobs of
+# this repo from the daily schedule, both ecosystems, and they never
+# come back on their own. Any change to .github/dependabot.yml
+# re-registers both jobs and fires an out-of-band update run (the
+# recovery hook documented in that file).
+#
+# This watchdog makes the wake fully automatic: an hourly probe reads
+# the newest "Dependabot Updates" run; once it is older than 26h the
+# probe refreshes the wake-up datestamp comment in dependabot.yml and
+# opens a PR that auto-merges, so no human step exists anywhere in the
+# wake path. While the schedule is healthy the nightly run is never
+# 26h old, the probe never trips, and the workflow does one read-only
+# API call per hour: the design self-retires the day the upstream fix
+# ships or the blocking cap lifts (mlflow's pyarrow<26 today).
+#
+# No ignore rules by design (owner ruling): every dependency keeps its
+# daily evaluation, including one whose latest version is currently
+# unsatisfiable - that attempt is a legitimate daily outcome, reported
+# in the job log, not something to filter.
+
+on:
+  schedule:
+    # Hourly probe; with the 26h threshold this yields an effective
+    # Dependabot cadence of ~26h while a proposal is stuck, close to
+    # the managed schedule's own ~24h.
+    - cron: "5 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Same contract as the other workflows: errexit, nounset, pipefail.
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Manual dispatches and hourly probes serialize; never cancel - a
+  # cancelled probe would silently skip a due wake.
+  cancel-in-progress: false
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Reads ride the ephemeral GITHUB_TOKEN; PR writes (guard query,
+      # CPR, auto-merge) ride PAT_FOR_BOTS like in the other workflows.
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Probe Dependabot run staleness
+        id: stale
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          wid=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows?per_page=100" \
+            --jq '.workflows[] | select(.name == "Dependabot Updates") | .id' | head -1)
+          if [ -z "$wid" ]; then
+            echo "no Dependabot Updates workflow registered: treating as stale"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${wid}/runs?per_page=1" \
+            --jq '.workflow_runs[0].run_started_at // empty')
+          if [ -z "$last" ]; then
+            echo "no Dependabot Updates run recorded: treating as stale"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          age_s=$(( $(date -u +%s) - $(date -u -d "$last" +%s) ))
+          echo "newest Dependabot run ${last}: age ${age_s}s, threshold $(( 26 * 3600 ))s"
+          if [ "$age_s" -gt "$(( 26 * 3600 ))" ]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Guard against a wake PR already in flight
+        id: guard
+        if: steps.stale.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_FOR_BOTS }}
+        run: |
+          open=$(gh pr list --repo "${GITHUB_REPOSITORY}" --head wake-dependabot --state open --json number --jq 'length')
+          if [ "$open" -gt 0 ]; then
+            echo "wake PR already open: re-asserting auto-merge, no new touch"
+            gh pr merge wake-dependabot --repo "${GITHUB_REPOSITORY}" --auto --squash >/dev/null 2>&1 || true
+            echo "in_flight=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "in_flight=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Refresh the wake-up datestamp
+        if: steps.stale.outputs.stale == 'true' && steps.guard.outputs.in_flight == 'false'
+        run: |
+          stamp="# Wake-up touch $(date -u +%Y-%m-%dT%H:%MZ) (stall watchdog; upstream: dependabot-core#13892)"
+          if grep -q '^# Wake-up touch' .github/dependabot.yml; then
+            # One datestamp line: replace it; any narrative comment lines
+            # below it are static history and stay untouched.
+            sed -i "s|^# Wake-up touch .*$|${stamp}|" .github/dependabot.yml
+          else
+            sed -i "s|^updates:|${stamp}\nupdates:|" .github/dependabot.yml
+          fi
+          grep -n 'Wake-up touch' .github/dependabot.yml
+
+      - name: Open the wake PR
+        id: cpr
+        if: steps.stale.outputs.stale == 'true' && steps.guard.outputs.in_flight == 'false'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          token: ${{ secrets.PAT_FOR_BOTS }}
+          add-paths: .github/dependabot.yml
+          commit-message: "chore: touch dependabot.yml to wake update schedule"
+          title: "chore: wake Dependabot update schedule"
+          body: |
+            Automated staleness wake from the watchdog workflow: the newest "Dependabot Updates" run was older than 26h when the probe fired, which happens when an update job errored (the uv updater classifies an unsatisfiable version proposal as job-fatal dependency_file_not_resolvable; upstream fix pending, dependabot-core#13892) and GitHub dropped the repo's update jobs from the schedule. The only change is the wake-up datestamp comment in dependabot.yml; merging re-registers both ecosystems and fires an out-of-band run. Auto-merge is enabled: the PR lands itself once the required checks pass, no review action needed.
+          branch: wake-dependabot
+          delete-branch: true
+
+      - name: Enable auto-merge on the wake PR
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.PAT_FOR_BOTS }}
+        run: |
+          gh pr merge wake-dependabot --repo "${GITHUB_REPOSITORY}" --auto --squash
