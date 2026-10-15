@@ -27,8 +27,12 @@ on:
   schedule:
     # Hourly probe; with the 26h threshold this yields an effective
     # Dependabot cadence of ~26h while a proposal is stuck, close to
-    # the managed schedule's own ~24h.
-    - cron: "5 * * * *"
+    # the managed schedule's own ~24h. Run at :41, well off the
+    # top-of-hour congestion window: GitHub drops scheduled runs
+    # under load (observed 2026-10-14: the :05 probe fired only 5 of
+    # ~31 hourly ticks, gaps up to 5h22m). The 26h threshold absorbs
+    # the drop granularity either way; this just tightens it.
+    - cron: "41 * * * *"
   workflow_dispatch: {}
 
 permissions:
