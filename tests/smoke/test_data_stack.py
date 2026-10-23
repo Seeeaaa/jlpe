@@ -20,14 +20,14 @@ def main() -> None:
     df = pd.DataFrame({"a": [1, 2, 3], "b": [4.0, 5.0, 6.0]})
 
     arrow_tbl = pa.Table.from_pandas(df)
-    result = duckdb.sql("select sum(a) from arrow_tbl").fetchone()
-    assert result[0] == 6, f"unexpected duckdb result: {result}"
+    result = duckdb.sql("select sum(a) from arrow_tbl").fetchall()
+    assert result[0][0] == 6, f"unexpected duckdb result: {result}"
     print("pandas -> pyarrow -> duckdb: OK")
 
     pl_df = pl.from_pandas(df)
     pl_arrow = pl_df.to_arrow()
-    result_pl = duckdb.sql("select sum(a) from pl_arrow").fetchone()
-    assert result_pl[0] == 6, f"unexpected polars/duckdb result: {result_pl}"
+    result_pl = duckdb.sql("select sum(a) from pl_arrow").fetchall()
+    assert result_pl[0][0] == 6, f"unexpected polars/duckdb result: {result_pl}"
     print("pandas -> polars -> pyarrow -> duckdb: OK")
 
     gdf = gpd.GeoDataFrame({"geometry": gpd.points_from_xy([0, 1], [0, 1])})
