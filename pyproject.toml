@@ -49,7 +49,7 @@ data = [
     "dask==2026.8.0",
     "duckdb==2.0.0",
     "pyarrow==25.0.1",
-    "sqlalchemy==2.1.5",
+    "sqlalchemy==2.1.6",
     "psycopg[binary,pool]==3.3.6",
     "narwhals==2.27.1",
     "ccxt==4.5.89",
