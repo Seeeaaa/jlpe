@@ -280,7 +280,9 @@ jobs:
   # Transitive dependency refresh: uv lock --upgrade against main's pins,
   # PR when the lock actually moved. Runs before probes so both jobs work
   # against main's uv.lock in a deterministic order (replaces the old
-  # 20:00 -> 22:00 clock staggering).
+  # 20:00 -> 22:00 clock staggering). The ceiling-report step keeps the
+  # resolver's silent back-offs (packages stuck below their PyPI latest)
+  # visible in the run summary and the lock PR's body.
   intermediate-deps:
     needs: versions
     if: contains(needs.versions.outputs.checks, 'intermediate')
@@ -312,6 +314,29 @@ jobs:
         uses: ./.github/actions/summarize-deps
         with:
           body-path: /tmp/dep_bump_body.md
+
+      - name: Dependency ceiling report
+        # Advisory observability for the silent conflict class: uv's
+        # resolver backs off a transitive bump whose newest release
+        # conflicts with a requirer's constraints (or with another locked
+        # package) without any error, so a package stuck below its PyPI
+        # latest is invisible in CI. The report lists every below-latest
+        # package in the post-upgrade lock with a root cause: yanked
+        # latest, python-version cap, the capping requirer's spec, or a
+        # second-order conflict where the latest release's own
+        # requirements clash with the fresh lock. It lands in the step
+        # summary every run and is appended to the lock PR body when one
+        # is created, so the bump table (what moved) and the ceiling
+        # table (what cannot move and why) are reviewed together.
+        # Advisory only, same reasoning as the probe update-availability
+        # gate: a stuck dependency is a documented ceiling state, never
+        # a red nightly. continue-on-error keeps a report failure (PyPI
+        # outage, script bug) from blocking the lock PR.
+        continue-on-error: true
+        uses: ./.github/actions/ceiling-report
+        with:
+          append-body-path: /tmp/dep_bump_body.md
+
       - name: Create pull request
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
