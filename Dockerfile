@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:0.13.4@sha256:9f130421e930bfbdc563c00740466603f8723158e90297d07957c2294640262b AS uv
+FROM ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff AS uv
 FROM python:3.14.9-slim-trixie@sha256:a145a961ec2cf5741772d5e39773d979271132884fd778f6c3fad34e52b85402
 
 # ensurepip bundles pip into the base image's site-packages, and pip's
