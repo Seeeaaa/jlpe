@@ -1,0 +1,42 @@
+name: Dependency ceiling report
+description: >-
+  Advisory report for the intermediate-deps job: compares every locked
+  package against its PyPI latest release and classifies each below-latest
+  package by why the resolver left it behind (yanked latest, python-version
+  cap, a capping requirer's spec, a second-order conflict with another
+  locked package, or unknown). Writes the report to the job step summary
+  and, when the given body file exists (the summarize-deps PR body),
+  appends it there so the lock PR carries both what moved and what cannot
+  move. Advisory only: lookup failures degrade rows, never the run.
+inputs:
+  append-body-path:
+    description: >-
+      Path of an existing PR body file to append the report to; skipped
+      when the file is absent (no lock-change PR was created this run).
+    required: false
+    default: /tmp/dep_bump_body.md
+runs:
+  using: composite
+  steps:
+    - name: Dependency ceiling report
+      shell: bash
+      env:
+        APPEND_BODY: ${{ inputs.append-body-path }}
+      run: |
+        # uv must already be on PATH (the caller installs it before this
+        # action). --no-project keeps the ephemeral packaging env from
+        # touching the repo's own resolution; --quiet keeps uv's own
+        # progress output out of the report on stdout.
+        command -v uv >/dev/null || {
+          echo "::error::ceiling report: uv is not on PATH (the caller must install it first)"
+          exit 1
+        }
+        report=/tmp/ceiling_report.md
+        uv run --no-project --quiet --with packaging \
+          python "$GITHUB_ACTION_PATH/ceiling_report.py" > "$report"
+        cat "$report"
+        cat "$report" >> "$GITHUB_STEP_SUMMARY"
+        if [ -n "$APPEND_BODY" ] && [ -f "$APPEND_BODY" ]; then
+          printf '\n' >> "$APPEND_BODY"
+          cat "$report" >> "$APPEND_BODY"
+        fi
