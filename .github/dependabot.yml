@@ -2,7 +2,7 @@ version: 2
 # Any change to this file triggers an immediate out-of-band Dependabot
 # update run for every ecosystem listed below. Kept as a recovery hook:
 # editing this file wakes the daily schedule if it ever stalls silently.
-# Wake-up touch 2026-10-19T11:14Z (stall watchdog; upstream: dependabot-core#13892)
+# Wake-up touch 2026-10-25T01:40Z (stall watchdog; upstream: dependabot-core#13892)
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
