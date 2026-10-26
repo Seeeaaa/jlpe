@@ -8,12 +8,17 @@ import then fails). For JupyterLab extensions/themes it checks distribution
 presence via importlib.metadata instead: their Python packages are install
 shims that do side-effecting work on import (e.g. locating a bundled
 package.json under the extension dir), so a bare import is not a valid test and
-would falsely fail even though the package installed correctly.
+would falsely fail even though the package installed correctly. For CLI-only
+distributions it verifies distribution presence plus a runnable binary: their
+wheels contain no importable Python module at all, so an import is the wrong
+contract.
 """
 
 import importlib
 import importlib.metadata
 import pathlib
+import shutil
+import subprocess
 import tomllib
 
 # Distribution names whose Python module must NOT be imported directly because
@@ -31,6 +36,17 @@ EXTENSION_DIST_NAMES = {
 # that default.
 NAME_TO_IMPORT = {
     "scikit-learn": "sklearn",
+}
+
+# Distribution names that ship only a command-line executable with no
+# importable Python module. nb-clean 5.0.0 ported the tool from Python to
+# Rust: PyPI wheels install a native binary via the .data/scripts scheme and
+# the nb_clean module no longer exists, so an import is the wrong contract.
+# Verified by distribution presence plus a runnable binary (--help exits 0 on
+# both the argparse 4.x CLI and the clap 5.x CLI; --version does not exist on
+# 4.x and the bare "version" command was dropped in 5.x).
+CLI_ONLY_DIST_NAMES = {
+    "nb-clean",
 }
 
 
@@ -62,6 +78,26 @@ def main() -> None:
                 failed.append(f"{dist}: distribution not installed")
             except Exception as exc:  # noqa: BLE001
                 failed.append(f"{dist}: {exc!r}")
+            continue
+        if dist in CLI_ONLY_DIST_NAMES:
+            # CLI-only: verify the distribution is installed and its binary runs.
+            try:
+                version = importlib.metadata.version(dist)
+            except importlib.metadata.PackageNotFoundError:
+                failed.append(f"{dist}: distribution not installed")
+                continue
+            except Exception as exc:  # noqa: BLE001
+                failed.append(f"{dist}: {exc!r}")
+                continue
+            if shutil.which(dist) is None:
+                failed.append(f"{dist}: distribution {version} installed but '{dist}' binary not on PATH")
+                continue
+            probe = subprocess.run([dist, "--help"], capture_output=True, timeout=30)
+            if probe.returncode != 0:
+                stderr = probe.stderr.decode(errors="replace").strip()
+                failed.append(f"{dist}: CLI '{dist} --help' exited {probe.returncode}: {stderr}")
+                continue
+            print(f"ok  {dist} (distribution {version}, CLI probe exit 0)")
             continue
         import_name = NAME_TO_IMPORT.get(dist, dist.replace("-", "_"))
         try:
