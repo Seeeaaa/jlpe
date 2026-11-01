@@ -10,7 +10,8 @@ name: Wake Dependabot schedule
 # recovery hook documented in that file).
 #
 # This watchdog makes the wake fully automatic: an hourly probe reads
-# the newest "Dependabot Updates" run; once it is older than 26h the
+# the newest scheduled "Dependabot Updates" pass - a run whose title is
+# not a per-PR update (see the probe step); once it is older than 26h the
 # probe refreshes the wake-up datestamp comment in dependabot.yml and
 # opens a PR that auto-merges, so no human step exists anywhere in the
 # wake path. While the schedule is healthy the nightly run is never
@@ -73,15 +74,25 @@ jobs:
             echo "stale=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          last=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${wid}/runs?per_page=1" \
-            --jq '.workflow_runs[0].run_started_at // empty')
+          # Only full-schedule passes count toward staleness: per-PR update
+          # runs ("uv in / for <pkg> - Update #N", fired when a push lands on
+          # an open Dependabot PR branch) carry " for " in their title and
+          # never re-register a dropped schedule, so they must not reset the
+          # clock (the 2026-10-31 18:08Z per-PR run on the open ccxt PR
+          # postponed a due wake by ~19h). The runs API offers no structural
+          # discriminator: event is "dynamic" and pull_requests is empty for
+          # every Dependabot run, head_branch is "main" for all - the title
+          # is the signal. per_page=15 leaves headroom for a per-PR burst;
+          # an all-per-PR page fails open into a wake, the safe direction.
+          last=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${wid}/runs?per_page=15" \
+            --jq '[.workflow_runs[] | select((.display_title | contains(" for ")) | not)][0].run_started_at // empty')
           if [ -z "$last" ]; then
-            echo "no Dependabot Updates run recorded: treating as stale"
+            echo "no scheduled Dependabot pass in the newest 15 runs: treating as stale"
             echo "stale=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           age_s=$(( $(date -u +%s) - $(date -u -d "$last" +%s) ))
-          echo "newest Dependabot run ${last}: age ${age_s}s, threshold $(( 26 * 3600 ))s"
+          echo "newest scheduled Dependabot pass ${last}: age ${age_s}s, threshold $(( 26 * 3600 ))s"
           if [ "$age_s" -gt "$(( 26 * 3600 ))" ]; then
             echo "stale=true" >> "$GITHUB_OUTPUT"
           else
