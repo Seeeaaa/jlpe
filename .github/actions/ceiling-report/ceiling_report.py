@@ -232,6 +232,15 @@ def classify(name, meta, requirer_pairs, lock_versions, direct, env, requirer_me
                 continue
             if not allows(req.specifier, latest):
                 caps.append(f"capped by {requirer}=={requirer_version}: `{line}`")
+    if name in direct and caps:
+        # With a capping requirer in play the plain Dependabot bump of this
+        # pin would die unresolvable (the documented pyarrow/mlflow case),
+        # so reword the direct-pin note appended above instead of leaving
+        # it contradicting the cap printed just below; the actionable path
+        # is the capping requirer's own bump.
+        notes[0] = (
+            "direct pin; a Dependabot bump of this pin would not resolve"
+            " - unblock via the capping requirer's own bump")
     notes.extend(caps)
     # Second level: the latest release's own requirements clash with what
     # the fresh lock resolves for one of its dependencies.
