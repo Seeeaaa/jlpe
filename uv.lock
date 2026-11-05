@@ -1196,7 +1196,7 @@ jupyterlab = [
     { name = "jupyter-ruff", specifier = "==0.3.1" },
     { name = "jupyterlab", specifier = "==4.6.5" },
     { name = "jupyterlab-execute-time", specifier = "==3.3.0" },
-    { name = "nb-clean", specifier = "==5.0.0" },
+    { name = "nb-clean", specifier = "==6.0.0" },
     { name = "tqdm", specifier = "==4.70.1" },
 ]
 ml = [
@@ -1817,11 +1817,11 @@ wheels = [
 
 [[package]]
 name = "nb-clean"
-version = "5.0.0"
+version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9a/48/6a9ddc7c6595c6f2f78533d29939ea9045ec87b581767309f22c771939ea/nb_clean-5.0.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2343a5f96230bc904fc3baf206040a5593ff3e16ece88d791446ea01e7b76712", size = 515670, upload-time = "2026-10-25T20:49:07.483Z" },
-    { url = "https://files.pythonhosted.org/packages/83/67/6b8c2a586323d10a5034cffd7d52b29afa932ae6cb2d2aaca05c073afa95/nb_clean-5.0.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3001effac236d10ad2e4f92c096c03d7de5b1ad61a05c4589096549a744fb92d", size = 553640, upload-time = "2026-10-25T20:49:08.953Z" },
+    { url = "https://files.pythonhosted.org/packages/60/78/e95165634bd8494be258e901bec3a878c98507394007deb99764157fa94c/nb_clean-6.0.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:60c34f6e29157f84b718cc1f905f9f7b07a88e0fab70726c96d27ef8b7523985", size = 1090579, upload-time = "2026-11-02T08:21:25.226Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/f8/8c254499ac68d02d190f32fad87bdac3288f464dc89b83b23f4f5267b783/nb_clean-6.0.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:088108b14dfc57df59e1fe0f9fcabf44bf402082fb7f4a399e9f8ea3acf0a59e", size = 1186299, upload-time = "2026-11-02T08:21:26.658Z" },
 ]
 
 [[package]]
