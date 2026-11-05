@@ -48,7 +48,7 @@ data = [
     "polars==2.1.0",
     "dask==2026.8.0",
     "duckdb==2.0.0",
-    "pyarrow==25.0.1",
+    "pyarrow==26.0.1",
     "sqlalchemy==2.1.8",
     "psycopg[binary,pool]==3.3.8",
     "narwhals==2.28.0",
