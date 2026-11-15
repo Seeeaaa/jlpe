@@ -12,12 +12,6 @@
     "smoke_test": ".github/dep-probes/tests/check_mlforecast.py"
   },
   {
-    "group": "data",
-    "name": "openpyxl",
-    "note": "Excel xlsx engine for pandas IO; queued 2026-11-05 per the owner's unified-intake ruling (every new library enters through the probe pipeline; direct-add PR #371 was closed in favor of this submission). Pure-Python universal wheel, sole dependency et-xmlfile, no caps against the pinned stack - expected to resolve at upstream latest on the first pass.",
-    "smoke_test": ".github/dep-probes/tests/check_openpyxl.py"
-  },
-  {
     "group": "jupyterlab",
     "name": "pytest",
     "note": "Test runner for the notebook-driven environment; queued 2026-11-05 per the owner's unified-intake ruling (every new library enters through the probe pipeline; direct-add PR #371 was closed in favor of this submission). Pure-Python universal wheel; on the image's Python 3.14 its dependency set reduces to iniconfig, packaging, pluggy and pygments - expected to resolve at upstream latest on the first pass.",
