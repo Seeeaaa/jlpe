@@ -1231,7 +1231,7 @@ data = [
 jupyterlab = [
     { name = "ipykernel", specifier = "==7.4.0" },
     { name = "ipywidgets", specifier = "==8.1.9" },
-    { name = "jupyter-resource-usage", specifier = "==1.3.0" },
+    { name = "jupyter-resource-usage", specifier = "==1.3.1" },
     { name = "jupyter-ruff", specifier = "==0.3.1" },
     { name = "jupyterlab", specifier = "==4.6.6" },
     { name = "jupyterlab-execute-time", specifier = "==3.3.0" },
@@ -1407,7 +1407,7 @@ wheels = [
 
 [[package]]
 name = "jupyter-resource-usage"
-version = "1.3.0"
+version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jupyter-server" },
@@ -1415,9 +1415,9 @@ dependencies = [
     { name = "psutil" },
     { name = "pyzmq" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d1/c4/ae5f09258edcc55e69c8692316b0cbbc09e444cb352af118bb7711f4e4b1/jupyter_resource_usage-1.3.0.tar.gz", hash = "sha256:14c248dc18b831515090a40b863ea68bef26c72a66a1d74beb8959f69a0c9e37", size = 435192, upload-time = "2026-08-11T10:44:35.564Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7e/f9/cc5b4965b4902489aa3ad482883f522f44e2f8e50ff163e444e38e733023/jupyter_resource_usage-1.3.1.tar.gz", hash = "sha256:0b96a53e826867e04004ae3aef190efc3207b55d2020f87ba4455d69481b04f4", size = 432596, upload-time = "2026-11-16T14:36:43.035Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2e/62/c37f7a625554e705a0a2d3a831626308b55f586d84ccc7293b8fe0e35a16/jupyter_resource_usage-1.3.0-py3-none-any.whl", hash = "sha256:a221fdec498c243d0f771688e839d586d09e932e862ca8b2ccb78c377045d5ec", size = 48550, upload-time = "2026-08-11T10:44:33.76Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/57/63a7002acd33e0fb1510bca177390a54266870dbaaa6afc2742c6bf2431d/jupyter_resource_usage-1.3.1-py3-none-any.whl", hash = "sha256:a53bceb35c36ebfc82fe45215e768ef4e4b4c91b827d32504abf468c2ff3bc0b", size = 54454, upload-time = "2026-11-16T14:36:40.318Z" },
 ]
 
 [[package]]
