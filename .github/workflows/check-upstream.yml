@@ -417,6 +417,7 @@ jobs:
           CAND_VERSION: ${{ matrix.version }}
           CAND_NOTE: ${{ matrix.note }}
           CAND_SMOKE_TEST: ${{ matrix.smoke_test }}
+          CAND_INDEX: ${{ matrix.index }}
         run: |
           # candidates.json entries are interpolated raw into shell and Python
           # further down (uv add, sed -i, python -c, git mv), so a malformed
@@ -437,6 +438,7 @@ jobs:
           version="$CAND_VERSION"
           note="$CAND_NOTE"
           smoke_test="$CAND_SMOKE_TEST"
+          index="$CAND_INDEX"
           # Reject newlines first: grep matches per line, so the whole-string
           # anchored checks below pass a value whose first line matches the
           # allowlist even when the rest of the value is an injected command.
@@ -458,6 +460,7 @@ jobs:
           newline_check "$version" version
           newline_check "$note" note
           newline_check "$smoke_test" smoke_test
+          newline_check "$index" index
           if ! printf '%s' "$name" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._-]*$'; then
             echo "::error::candidates.json 'name' failed format validation: '$name'"
             exit 1
@@ -508,6 +511,16 @@ jobs:
               exit 1
             fi
           fi
+          # Optional declared package index, format "<index-name>=<https-url>"
+          # (the same NAME=URL shape uv's own --index flag accepts). The name
+          # must be a valid TOML bare key and the URL an https URL: both parts
+          # are interpolated into a sed program and echo-built TOML blocks in
+          # the index-pinning step below, so quotes, dollars and backticks
+          # must be impossible; the anchored character classes prove that.
+          if [ -n "$index" ] && ! printf '%s' "$index" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._-]*=https://[A-Za-z0-9][A-Za-z0-9._/-]*$'; then
+            echo "::error::candidates.json 'index' failed format validation (expected '<name>=https://<url>'): '$index'"
+            exit 1
+          fi
 
       - name: Check if already enabled
         id: guard
@@ -535,6 +548,58 @@ jobs:
       - name: Sync base environment (sanity check)
         if: steps.guard.outputs.skip != 'true'
         run: uv sync --locked --all-groups
+
+      - name: Pin ${{ matrix.name }} to its declared index
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          CAND_INDEX: ${{ matrix.index }}
+        run: |
+          # Some distributions do not publish their target build to PyPI: the
+          # canonical case is torch, whose linux wheels on PyPI bundle the
+          # CUDA runtime (nvidia-* transitive pins, multi-GB image growth),
+          # while the CPU-only build lives on download.pytorch.org/whl/cpu
+          # under a PEP 440 local version tag (2.15.0+cpu). uv's per-package
+          # index pin ([tool.uv.sources] + an explicit [[tool.uv.index]]) is
+          # the only shape that also survives later nightly lock upgrades:
+          # with the source pin uv resolves THIS package from the declared
+          # index only, every other package stays on PyPI, and a future
+          # uv lock --upgrade cannot silently flip the variant back to
+          # PyPI's build. The field format "<name>=<url>" was validated
+          # above; both parts flow through shell variables here, never
+          # script-text interpolation. The blocks are appended at EOF, which
+          # is valid TOML from any enclosing table, and the file must still
+          # parse (tomllib) before the add step consumes it.
+          index="$CAND_INDEX"
+          if [ -z "$index" ]; then
+            echo "no index declared, nothing to pin"
+            exit 0
+          fi
+          name="${{ matrix.name }}"
+          base="${name%%\[*}"
+          iname="${index%%=*}"
+          iurl="${index#*=}"
+          if grep -q '^\[tool\.uv\.sources\]' pyproject.toml; then
+            sed -i "/^\[tool\.uv\.sources\]/a ${base} = { index = \"${iname}\" }" pyproject.toml
+          else
+            {
+              echo ""
+              echo "[tool.uv.sources]"
+              echo "${base} = { index = \"${iname}\" }"
+            } >> pyproject.toml
+          fi
+          # A second index-pinned candidate reusing an already-declared index
+          # name must not append a duplicate [[tool.uv.index]] array entry
+          # (uv rejects duplicate index names); skip the block when present.
+          if ! grep -Eq "^name = \"${iname}\"$" pyproject.toml; then
+            {
+              echo ""
+              echo "[[tool.uv.index]]"
+              echo "name = \"${iname}\""
+              echo "url = \"${iurl}\""
+              echo "explicit = true"
+            } >> pyproject.toml
+          fi
+          python3 -c "import tomllib; tomllib.load(open('pyproject.toml', 'rb')); print('pyproject.toml parses OK after index pin')"
 
       - name: Try adding ${{ matrix.name }}
         id: add
@@ -595,6 +660,15 @@ jobs:
           base="${name%%\[*}"
           resolved="${{ steps.pin.outputs.version }}"
           latest=$(curl -sf "https://pypi.org/pypi/${base}/json" | jq -r .info.version) || latest=""
+          # PEP 440 local version tags: index-pinned builds carry a local
+          # label (torch resolved from download.pytorch.org/whl/cpu comes
+          # back as 2.15.0+cpu). A local tag is compatible with the same
+          # public release and PyPI never hosts local versions, so the
+          # availability comparison uses the public part: comparing the raw
+          # string would permanently queue every index-pinned candidate
+          # (2.15.0+cpu vs 2.15.0 reads as a false "below latest" nightly
+          # after nightly). Warnings keep the full resolved string.
+          resolved_public="${resolved%%+*}"
           # Loose format guard: this value feeds warnings and PR text only
           # (never sed -i), so a single-line PEP 440-ish shape with no shell
           # metacharacters is enough; a curl outage leaves it empty and the
@@ -603,7 +677,7 @@ jobs:
             echo "::error::pypi latest version '$latest' failed format validation"
             exit 1
           fi
-          if [ -n "$latest" ] && [ "$latest" != "$resolved" ]; then
+          if [ -n "$latest" ] && [ "$latest" != "$resolved_public" ]; then
             echo "ceiling=true" >> "$GITHUB_OUTPUT"
             echo "latest_version=$latest" >> "$GITHUB_OUTPUT"
             echo "resolved=$resolved" >> "$GITHUB_OUTPUT"
@@ -711,6 +785,8 @@ jobs:
 
             This PR also removes `${{ matrix.name }}` from `.github/dep-probes/candidates.json`, since it will no longer be excluded once merged, and folds `${{ matrix.smoke_test }}` into `tests/smoke/`, where the smoke-test loop picks it up automatically, so future ${{ matrix.name }} version bumps get the same regression coverage as the rest of the ML stack.
 
+            For candidates declaring an `index` in candidates.json, resolution used that declared index through the `[tool.uv.sources]` / `[[tool.uv.index]]` blocks in the pyproject.toml diff: the pinned version can carry a PEP 440 local tag (for example `2.15.0+cpu`) and the wheel URLs in uv.lock point at the declared index host instead of pypi.org.
+
           branch: enable-dep-${{ matrix.name }}
           labels: dependencies,compatibility-probe
           delete-branch: true
@@ -720,6 +796,7 @@ jobs:
         env:
           CAND_NAME: ${{ matrix.name }}
           CAND_NOTE: ${{ matrix.note }}
+          CAND_INDEX: ${{ matrix.index }}
         run: |
           # matrix.name / matrix.note arrive via env indirection: this step has
           # if: always(), so it runs even when the validate step above FAILED,
@@ -744,6 +821,10 @@ jobs:
             note="$CAND_NOTE"
             if [ -n "$note" ]; then
               echo "note: $note"
+            fi
+            index="$CAND_INDEX"
+            if [ -n "$index" ]; then
+              echo "index: $index"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
