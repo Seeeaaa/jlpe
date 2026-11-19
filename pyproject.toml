@@ -53,7 +53,7 @@ data = [
     "sqlalchemy==2.1.8",
     "psycopg[binary,pool]==3.3.9",
     "narwhals==2.29.0",
-    "ccxt==4.5.92",
+    "ccxt==4.5.93",
     "openpyxl==3.1.5",
 ]
 
