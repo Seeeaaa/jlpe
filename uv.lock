@@ -319,7 +319,7 @@ wheels = [
 
 [[package]]
 name = "ccxt"
-version = "4.5.93"
+version = "4.5.94"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohappyeyeballs" },
@@ -344,9 +344,9 @@ dependencies = [
     { name = "yarl" },
     { name = "zlib-ng" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/00/b8/7ef51debbd745320f8f6727cc913eae5d8e6fc4861fce1dd35374f719fc3/ccxt-4.5.93.tar.gz", hash = "sha256:da110503c8fcc3e789db342eec1fe82cbe7da7f4ed52e50d9bfd521da8f17d8d", size = 6469452, upload-time = "2026-11-17T09:55:44.012Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/ae/401555c53a9f2dadf0802de572c9b9ddc3e0a14c90cd855541b7c38f5cda/ccxt-4.5.94.tar.gz", hash = "sha256:fbf9658309682d762387dd13c0dd1b28e233b992c54c93b22b766e40e84406bb", size = 6579304, upload-time = "2026-11-23T15:24:09.613Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/df/ca/803d2a424d29b4229ceb78b7eb6ab60f20dd4c23e2d83245b0e1021423e7/ccxt-4.5.93-py3-none-any.whl", hash = "sha256:214d1a0379b5539fa29936e03cbe12d78c55a58df8f225d59f9fc3ad72805b53", size = 6847453, upload-time = "2026-11-17T09:55:41.341Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/28/1286cddb06b3b3e6ce355faa953ae977c93dae8d3e9106b5b71838b29747/ccxt-4.5.94-py3-none-any.whl", hash = "sha256:73ed618e1f81d5c338e985d4f14b9edf5f332148ed9d45e6181978dac66a1e17", size = 6961403, upload-time = "2026-11-23T15:24:07.596Z" },
 ]
 
 [[package]]
@@ -1215,7 +1215,7 @@ visualization = [
 
 [package.metadata.requires-dev]
 data = [
-    { name = "ccxt", specifier = "==4.5.93" },
+    { name = "ccxt", specifier = "==4.5.94" },
     { name = "dask", specifier = "==2026.8.0" },
     { name = "duckdb", specifier = "==2.0.0" },
     { name = "narwhals", specifier = "==2.29.0" },
@@ -3123,7 +3123,7 @@ name = "terminado"
 version = "0.18.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "os_name != 'nt'" },
     { name = "tornado" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8a/11/965c6fd8e5cc254f1fe142d547387da17a8ebfd75a3455f637c663fb38a0/terminado-0.18.1.tar.gz", hash = "sha256:de09f2c4b85de4765f7714688fff57d3e75bad1f909b589fde880460c753fd2e", size = 32701, upload-time = "2024-03-12T14:34:39.026Z" }
