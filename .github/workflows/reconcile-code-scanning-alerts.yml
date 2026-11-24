@@ -116,7 +116,7 @@ jobs:
         # to the main analysis (the same reason the old upload-sarif step
         # needed the push-path permission split before #193).
         if: github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
         with:
           sarif_file: current-scan.sarif
           ref: refs/heads/main
