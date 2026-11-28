@@ -334,9 +334,16 @@ jobs:
           # The security suite token marks a real published fix that has not
           # yet been applied. A pending security-channel upgrade means the
           # built image missed applying an available fix, so the step fails.
-          pending=$(docker run --rm --entrypoint bash \
+          # Capture the full simulation before filtering it. The docker call
+          # must stay outside any || true chain: under set -e, a failed apt-get
+          # update, simulation, or container launch then fails this step instead
+          # of looking like an empty security-upgrade list.
+          upgrades=$(docker run --rm --entrypoint bash \
             vyxan/jlpe_image:${{ steps.ref.outputs.sha }} -c \
-            'apt-get update -qq >/dev/null 2>&1 && apt-get -s upgrade | grep -iE "^Inst .*security" || true')
+            'apt-get update -qq >/dev/null 2>&1 && apt-get -s upgrade')
+          # Only grep's "no matches" status is ignored here. Any apt failure
+          # has already failed the assignment above before this filter runs.
+          pending=$(printf '%s\n' "$upgrades" | grep -iE "^Inst .*security" || true)
           if [ -n "$pending" ]; then
             echo "::error::pending Debian-security upgrade(s) detected in the image:"
             echo "$pending"
