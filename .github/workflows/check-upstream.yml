@@ -659,7 +659,29 @@ jobs:
           name="${{ matrix.name }}"
           base="${name%%\[*}"
           resolved="${{ steps.pin.outputs.version }}"
-          latest=$(curl -sf "https://pypi.org/pypi/${base}/json" | jq -r .info.version) || latest=""
+          # A transient registry failure is not evidence that resolution
+          # reached upstream latest. Retry the lookup, then expose a distinct
+          # failure state so the downstream gates keep the candidate queued.
+          latest=""
+          for attempt in 1 2 3; do
+            if latest=$(curl -sf --connect-timeout 10 --max-time 30 "https://pypi.org/pypi/${base}/json" | jq -r '.info.version // empty') && [ -n "$latest" ]; then
+              break
+            fi
+            latest=""
+            if [ "$attempt" -lt 3 ]; then
+              sleep 2
+            fi
+          done
+          echo "latest_version=$latest" >> "$GITHUB_OUTPUT"
+          echo "resolved=$resolved" >> "$GITHUB_OUTPUT"
+          if [ -z "$latest" ]; then
+            echo "lookup_failed=true" >> "$GITHUB_OUTPUT"
+            echo "ceiling=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Could not determine the upstream latest version for ${base} after 3 attempts."
+            echo "::warning::The update-availability result is unknown; the candidate stays queued and no enable-dep PR is opened."
+            exit 0
+          fi
+          echo "lookup_failed=false" >> "$GITHUB_OUTPUT"
           # PEP 440 local version tags: index-pinned builds carry a local
           # label (torch resolved from download.pytorch.org/whl/cpu comes
           # back as 2.15.0+cpu). A local tag is compatible with the same
@@ -671,22 +693,18 @@ jobs:
           resolved_public="${resolved%%+*}"
           # Loose format guard: this value feeds warnings and PR text only
           # (never sed -i), so a single-line PEP 440-ish shape with no shell
-          # metacharacters is enough; a curl outage leaves it empty and the
-          # no-ceiling path below runs unchanged.
-          if [ -n "$latest" ] && ! printf '%s' "$latest" | grep -qE '^[A-Za-z0-9.+-]+$'; then
+          # metacharacters is enough.
+          if ! printf '%s' "$latest" | grep -qE '^[A-Za-z0-9.+-]+$'; then
             echo "::error::pypi latest version '$latest' failed format validation"
             exit 1
           fi
-          if [ -n "$latest" ] && [ "$latest" != "$resolved_public" ]; then
+          if [ "$latest" != "$resolved_public" ]; then
             echo "ceiling=true" >> "$GITHUB_OUTPUT"
-            echo "latest_version=$latest" >> "$GITHUB_OUTPUT"
-            echo "resolved=$resolved" >> "$GITHUB_OUTPUT"
             echo "::warning::${base} resolved at ${resolved} but upstream latest is ${latest}."
             echo "::warning::The newer release is unreachable for this pinned stack (requirements conflict)."
             echo "::warning::Dependabot's nightly direct-bump would fail after such a merge; the update-availability gate below keeps the candidate queued instead."
           else
             echo "ceiling=false" >> "$GITHUB_OUTPUT"
-            echo "latest_version=$latest" >> "$GITHUB_OUTPUT"
             echo "${base} resolved at the upstream latest (${resolved}): no ceiling"
           fi
 
@@ -722,7 +740,14 @@ jobs:
           # nightly run re-verifies the candidate until the conflict resolves
           # upstream. The job stays green on purpose: a red nightly run for a
           # known, documented ceiling would re-create the red-X
-          # desensitization the retire-forecast-probes PR removed.
+          # desensitization the retire-forecast-probes PR removed. A PyPI
+          # lookup failure gets the same queued treatment: unknown is not
+          # evidence that the resolved version reached upstream latest.
+          if [ "${{ steps.add.outcome }}" == 'success' ] && [ "${{ steps.smoke.outcome }}" == 'success' ] && [ "${{ steps.ceiling.outputs.lookup_failed }}" == 'true' ]; then
+            echo "::warning::Could not verify whether ${{ matrix.name }} resolved at upstream latest; see the lookup warnings above."
+            echo "::warning::Candidate stays queued; no enable-dep PR is opened; the nightly run retries the lookup."
+            exit 0
+          fi
           if [ "${{ steps.add.outcome }}" == 'success' ] && [ "${{ steps.smoke.outcome }}" == 'success' ] && [ "${{ steps.ceiling.outputs.ceiling }}" == 'true' ]; then
             echo "::warning::${{ matrix.name }} resolved at ${{ steps.ceiling.outputs.resolved }} but upstream latest is ${{ steps.ceiling.outputs.latest_version }}."
             echo "::warning::Update-availability check failed: resolution cannot reach upstream latest for this pinned stack."
@@ -736,7 +761,7 @@ jobs:
           fi
 
       - name: Fold ${{ matrix.name }} smoke test into tests/smoke
-        if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success' && steps.ceiling.outputs.ceiling != 'true'
+        if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success' && steps.ceiling.outputs.ceiling != 'true' && steps.ceiling.outputs.lookup_failed != 'true'
         run: |
           # Smoke tests live as standalone scripts under tests/smoke/, one per
           # library, and build.yml's smoke-test job loops over tests/smoke/*.py
@@ -768,7 +793,7 @@ jobs:
           git mv "$test_path" "$target"
 
       - name: Create pull request
-        if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success' && steps.ceiling.outputs.ceiling != 'true'
+        if: steps.add.outcome == 'success' && steps.smoke.outcome == 'success' && steps.ceiling.outputs.ceiling != 'true' && steps.ceiling.outputs.lookup_failed != 'true'
         uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8
         with:
           token: ${{ secrets.PAT_FOR_BOTS }}
@@ -813,6 +838,8 @@ jobs:
               echo "resolution failed - still incompatible"
             elif [ "${{ steps.smoke.outcome }}" != "success" ]; then
               echo "resolution OK, smoke test failed"
+            elif [ "${{ steps.ceiling.outputs.lookup_failed }}" = "true" ]; then
+              echo "upstream latest lookup failed after 3 attempts - candidate stays queued, no PR opened"
             elif [ "${{ steps.ceiling.outputs.ceiling }}" = "true" ]; then
               echo "update-availability check FAILED: resolved BELOW upstream latest ${{ steps.ceiling.outputs.latest_version }} (requirements conflict) - candidate stays queued, no PR opened"
             else
