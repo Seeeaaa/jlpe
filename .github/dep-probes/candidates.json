@@ -10,5 +10,11 @@
     "name": "mlforecast",
     "note": "Nixtla ML-based forecasting; retired from the ml group on 2026-09-23 because the 1.1.0 line declares pandas<3.0 while pandas==3.0.x is pinned (the Sep 2026 probe resolved 1.0.2 below latest); re-queued for verification.",
     "smoke_test": ".github/dep-probes/tests/check_mlforecast.py"
+  },
+  {
+    "group": "data",
+    "name": "python-calamine",
+    "note": "Rust-backed Excel/ODS read engine (xls/xlsx/xlsm/xlsb/ods) for pandas read_excel; queued 2026-11-15 per the owner's unified-intake ruling. Owner's usage is read-Excel-then-transform-to-parquet (never writes xlsx), so calamine replaces openpyxl entirely once enabled - the openpyxl removal is a separate follow-up PR after calamine lands. cp314 manylinux wheel, zero runtime deps - expected to resolve at upstream latest on the first pass.",
+    "smoke_test": ".github/dep-probes/tests/check_python_calamine.py"
   }
 ]
