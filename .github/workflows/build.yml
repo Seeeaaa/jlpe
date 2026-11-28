@@ -38,9 +38,9 @@ jobs:
     # content that was already built and pushed in the run that made it.
     # The stamp-date job guards this marker before pushing (see the
     # "Commit and push" step there); skip-build-notice below watches the
-    # reverse case (marker present on a human commit that changes image
-    # content). The marker only suppresses the pipeline when authored by the
-    # bot (the sole legitimate emitter): requiring bot authorship prevents a
+    # reverse case (a bot-authored marker on unexpected image content).
+    # The marker only suppresses the pipeline when authored by the bot (the
+    # sole legitimate emitter): requiring bot authorship prevents a human
     # multi-commit push whose head carries "[skip build]" but whose earlier
     # commits touch image files from silently skipping the build.
     if: github.event_name == 'push' && !(contains(github.event.head_commit.message, '[skip build]') && github.event.head_commit.author.username == 'github-actions[bot]')
@@ -172,18 +172,15 @@ jobs:
   # Watchdog for the other side of the [skip build] contract. "[skip build]"
   # is NOT a native GitHub Actions skip directive (only [skip ci], [ci skip],
   # [no ci], [skip actions] are) -- here it works solely because of the
-  # if-condition on the changes job above. That means a human commit carrying
-  # the marker while still touching pyproject.toml / uv.lock silently changes
-  # image content with no build, smoke test, or Docker Hub publish behind it.
-  # Surface that loudly instead of letting it slip through unnoticed.
-  # Stamp commits themselves are exempt: they are authored by the bot and
-  # legitimately skip the rebuild because the build job consumes their SHA in
-  # this very workflow run (needs: stamp-date).
+  # if-condition on the changes job above, and only for a bot-authored head
+  # commit. The legitimate stamp changes only VERSION. A bot-marked push that
+  # also changes Dockerfile, pyproject.toml, or uv.lock suppresses a real image
+  # build, so surface that instead of warning on human commits that still build.
   skip-build-notice:
     if: >-
       github.event_name == 'push' &&
       contains(github.event.head_commit.message, '[skip build]') &&
-      github.event.head_commit.author.username != 'github-actions[bot]'
+      github.event.head_commit.author.username == 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -191,18 +188,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Warn if [skip build] suppressed an image-content change
+      - name: Warn if bot-authored [skip build] suppressed unexpected image content
         run: |
           # Diff the whole push range (before -> sha), not just HEAD^ HEAD:
-          # a multi-commit push can change pyproject.toml/uv.lock/VERSION in
-          # an earlier commit while the head commit alone carries "[skip
-          # build]". fetch-depth: 0 makes github.event.before available for
-          # the range.
-          if git diff --quiet "${{ github.event.before }}" "${{ github.sha }}" -- pyproject.toml uv.lock VERSION; then
-            echo "Commit is marked [skip build] and does not touch pyproject.toml, uv.lock or VERSION."
-            echo "No image content was skipped; nothing to do."
+          # a multi-commit push can change image content in an earlier commit
+          # while the bot-authored head commit alone carries "[skip build]".
+          # VERSION is deliberately absent: changing only VERSION is the
+          # legitimate stamp-date path whose rebuild this marker must suppress.
+          if git diff --quiet "${{ github.event.before }}" "${{ github.sha }}" -- Dockerfile pyproject.toml uv.lock; then
+            echo "Bot-authored [skip build] commit changes no image content outside the VERSION stamp."
+            echo "No unexpected image build was suppressed; nothing to do."
           else
-            echo "::warning::This commit is marked [skip build] but modifies pyproject.toml, uv.lock and/or VERSION."
+            echo "::warning::This bot-authored [skip build] commit modifies Dockerfile, pyproject.toml and/or uv.lock."
             echo "::warning::Image content changed WITHOUT a build, smoke test, or Docker Hub publish."
             echo "::warning::If this was unintended, push a follow-up commit without the marker,"
             echo "::warning::or re-run the pipeline via workflow_dispatch with force_push=true."
