@@ -1,12 +1,14 @@
 name: Check upstream drift
 concurrency:
   # Two runs of this workflow must not overlap: both intermediate-deps and
-  # dependency-probes consume and mutate uv.lock, so a manual dispatch landing
-  # on top of the nightly cron (or a push) could interleave the two consumers
-  # and resolve against a moving lock. Serialize all runs of this workflow;
-  # the needs: chain already serializes jobs within a run.
+  # dependency-probes consume and mutate uv.lock. update-pr-branches and
+  # wake-dependabot share this group so they cannot move a CPR-owned branch
+  # while create-pull-request holds a fetched ref for force-with-lease.
+  # queue: max keeps older pending runs instead of replacing them with newer
+  # pushes; cancel-in-progress: false lets the active writer finish.
   group: check-upstream
   cancel-in-progress: false
+  queue: max
 
 # Consolidated daily checks that used to live in five separate workflows:
 #   check-python-version.yml       -> bump-base (matrix component: python)

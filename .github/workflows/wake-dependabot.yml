@@ -45,10 +45,13 @@ defaults:
     shell: bash --noprofile --norc -euo pipefail {0}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  # Manual dispatches and hourly probes serialize; never cancel - a
-  # cancelled probe would silently skip a due wake.
+  # The wake PR is CPR-owned too, so share check-upstream's group: no safe-merge
+  # from update-pr-branches can collide with this workflow's create-pull-request
+  # push. queue: max keeps pending probes and manual dispatches; never cancel
+  # the active run because a cancelled probe could silently skip a due wake.
+  group: check-upstream
   cancel-in-progress: false
+  queue: max
 
 jobs:
   wake:
